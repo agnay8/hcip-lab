@@ -1,0 +1,3523 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HCIP VRP 命令行训练场</title>
+<style>
+:root{
+  --bg:#f4f5f7; --panel:#fff; --line:#e2e5ea; --text:#1b2430; --dim:#6b7684;
+  --accent:#cf0a2c; --accent-soft:#fdecf0;
+  --term-bg:#0c1016; --term-fg:#d6dce6; --term-dim:#7b8794; --term-err:#ff6b81; --term-ok:#5fd39a;
+  --c-kw:#8a94a3; --c-if:#2f7fd4; --c-ip:#1f9d55; --c-mask:#b7791f; --c-wc:#b02a55; --c-num:#0e8f8f; --c-str:#7b5bbf;
+  --mono:"Cascadia Mono",Consolas,"Courier New",ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);
+  font:14px/1.55 -apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  display:flex;flex-direction:column;overflow:hidden}
+button{font:inherit;cursor:pointer}
+
+/* ---------- header ---------- */
+header{height:54px;flex:0 0 auto;display:flex;align-items:center;gap:14px;
+  padding:0 16px;background:#fff;border-bottom:1px solid var(--line);z-index:5}
+.brand{display:flex;align-items:baseline;gap:8px;font-weight:700;font-size:15px;letter-spacing:.2px}
+.brand b{color:var(--accent)}
+.brand small{font-weight:400;font-size:11px;color:var(--dim);letter-spacing:.6px}
+.spacer{flex:1}
+.vbadge{font:11.5px var(--mono);padding:3px 8px;border-radius:5px;background:#f0f2f5;color:#3a4552;border:1px solid var(--line)}
+.btn{padding:5px 11px;border-radius:6px;border:1px solid var(--line);background:#fff;color:#3a4552;font-size:12.5px}
+.btn:hover{border-color:#c3ccd6;background:#fafbfc}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.pri:hover{background:#b30926}
+
+/* ---------- layout ---------- */
+main{flex:1;display:grid;grid-template-columns:276px minmax(0,1fr) 396px;min-height:0}
+.pane{min-height:0;display:flex;flex-direction:column;background:var(--panel);overflow:hidden;border-right:1px solid var(--line)}
+.pane:last-child{border-right:0}
+.pane-hd{height:38px;flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:0 12px;
+  border-bottom:1px solid var(--line);font-size:11.5px;font-weight:600;color:var(--dim);letter-spacing:.5px}
+.pane-hd .dot{width:6px;height:6px;border-radius:50%;background:var(--accent)}
+
+/* ---------- notes ---------- */
+#noteList{flex:0 0 auto;max-height:132px;overflow:auto;border-bottom:1px solid var(--line)}
+.ni{padding:6px 12px;font-size:12.5px;cursor:pointer;border-left:2px solid transparent;color:#3a4552;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ni:hover{background:#f7f9fb}
+.ni.on{background:#f2f6fc;border-left-color:var(--accent);font-weight:600}
+#noteBody{flex:1;min-height:0;border:0;outline:none;resize:none;padding:11px 12px;background:transparent;
+  font:12.5px/1.75 var(--mono);color:#2b3542;width:100%}
+.note-ft{flex:0 0 auto;display:flex;gap:6px;padding:8px 10px;border-top:1px solid var(--line)}
+.note-ft .btn{flex:1;padding:5px 0;text-align:center;font-size:12px}
+
+/* ---------- terminal ---------- */
+#termPane{background:#fff}
+#term{flex:1;min-height:0;overflow:auto;background:var(--term-bg);color:var(--term-fg);
+  font:13px/1.6 var(--mono);padding:14px 16px 10px;white-space:pre-wrap;word-break:break-word}
+#term .l{min-height:1.6em}
+#term .p{color:#e9edf3}
+#term .o{color:#9aa7b6}
+#term .d{color:#6f7d8c}
+#term .e{color:var(--term-err)}
+#term .g{color:var(--term-ok)}
+#term .caret{color:var(--term-err);font-weight:700}
+#term .hdr{color:#8fa0b3}
+
+.tok{padding:0 1px;border-radius:2px}
+.tk{color:#cfd8e3}
+.tif{color:#7fbcf5}
+.tip{color:#67d99b}
+.tm{color:#e8c07d}
+.tw{color:#ff9db5}
+.tn{color:#5fd8d8}
+.ts{color:#c2a8ff}
+
+.inputline{flex:0 0 auto;display:flex;align-items:center;gap:2px;background:var(--term-bg);
+  padding:2px 16px 10px;font:13px/1.6 var(--mono)}
+.inputline .pr{color:#e9edf3;white-space:nowrap}
+#cmd{flex:1;min-width:0;background:transparent;border:0;outline:none;color:#fff;
+  font:13px/1.6 var(--mono);caret-color:#ff5c78;padding:0}
+
+#hintbar{flex:0 0 auto;padding:7px 14px;border-top:1px solid var(--line);background:#fbfcfd;
+  font-size:11.5px;color:var(--dim);display:flex;flex-wrap:wrap;gap:4px 14px;min-height:32px;align-items:center}
+#hintbar b{color:#2b3542;font-weight:600}
+#hintbar .kbd{font:10.5px var(--mono);border:1px solid #d6dce4;border-bottom-width:2px;border-radius:4px;
+  padding:0 4px;background:#fff;color:#4a5663}
+
+.selbtn{position:fixed;z-index:80;display:none;background:var(--accent);color:#fff;border:0;
+  border-radius:7px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;
+  box-shadow:0 6px 18px rgba(0,0,0,.22);letter-spacing:.2px}
+.selbtn:hover{background:#b30926}
+
+/* 终端标题栏里的「记下框选」：框选后变成高亮，提示可一次性记下 */
+.hbtn{font:11px/1 var(--mono);padding:3px 8px;border-radius:5px;border:1px solid var(--line);
+  background:#fff;color:#6b7683;cursor:pointer;margin-right:8px;flex:0 0 auto}
+.hbtn:hover{border-color:var(--accent);color:var(--accent)}
+.hbtn.on{background:var(--accent);border-color:var(--accent);color:#fff}
+@media (max-width:1180px){ .hdr-hint{display:none} }
+
+#cands{flex:0 0 auto;display:flex;flex-wrap:wrap;gap:6px;padding:8px 14px;background:#fff;
+  border-top:1px solid var(--line);max-height:104px;overflow:auto}
+#cands:empty{display:none}
+.cand{font:11.5px var(--mono);padding:3px 8px;border-radius:5px;border:1px solid var(--line);
+  background:#fbfcfd;color:#2f3a47}
+.cand:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.cand.p{border-style:dashed;color:#7a6a2f;background:#fdfbf2;border-color:#e6dcb8}
+
+/* ---------- right ---------- */
+.tabs{flex:0 0 auto;display:flex;gap:2px;padding:6px 8px 0;border-bottom:1px solid var(--line);background:#fff}
+.tab{padding:6px 9px;font-size:12.5px;color:var(--dim);border-radius:6px 6px 0 0;cursor:pointer}
+.tab.on{color:var(--accent);font-weight:600;background:#fff;box-shadow:inset 0 -2px 0 var(--accent)}
+.tabbody{flex:1;min-height:0;overflow:auto;display:none;padding:12px}
+.tabbody.on{display:block}
+
+.sec{margin-bottom:14px}
+.sec h4{margin:0 0 6px;font-size:11.5px;color:var(--dim);letter-spacing:.6px;font-weight:600;
+  display:flex;align-items:center;gap:6px}
+.sec h4::before{content:"";width:3px;height:11px;background:var(--accent);border-radius:2px}
+.card{border:1px solid var(--line);border-radius:8px;background:#fbfcfd;padding:9px 10px}
+
+.tpl{font:12.5px/2 var(--mono);word-break:break-word}
+.tp-k{color:#333}
+.tp-p{display:inline-block;padding:0 5px;border-radius:4px;border:1px dashed currentColor;font-size:11.5px}
+.role{font-size:10.5px;color:#8b95a1;margin-left:1px}
+
+.tree{font:12.5px/1.85 var(--mono);background:#fbfcfd;border:1px solid var(--line);border-radius:8px;
+  padding:8px 10px;overflow:auto}
+.trow{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;row-gap:2px}
+.trow .bar{color:#ccd3db;white-space:pre;flex:0 0 auto}
+.trow .val{color:#1b2430;flex:0 0 auto}
+.trow .chip{flex:0 0 auto}
+.trow .cmt{color:#8b95a1;font-size:11px;min-width:0;word-break:break-word}
+
+.chip{font:10.5px var(--mono);padding:1px 5px;border-radius:4px;white-space:nowrap;border:1px solid transparent}
+.c-kw{background:#eef1f4;color:var(--c-kw)}
+.c-if{background:#e8f2fd;color:var(--c-if)}
+.c-ip{background:#e6f6ee;color:var(--c-ip)}
+.c-mask{background:#fdf3e2;color:var(--c-mask)}
+.c-wc{background:#fdeaf0;color:var(--c-wc)}
+.c-num{background:#e5f6f6;color:var(--c-num)}
+.c-str{background:#f1ecfb;color:var(--c-str)}
+
+.path{font:12.5px/1.9 var(--mono)}
+.path .pt{color:#2f3a47}
+.path .pv{color:#8b95a1;font-size:11px;font-family:-apple-system,"PingFang SC",sans-serif}
+.path .arrow{color:#c3ccd6;padding-left:10px}
+
+table.pt-t{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
+table.pt-t th{text-align:left;color:var(--dim);font-weight:500;font-size:11px;padding:3px 4px;border-bottom:1px solid var(--line)}
+table.pt-t td{padding:5px 4px;border-bottom:1px solid #f0f2f5;vertical-align:top;font-family:var(--mono);font-size:11.5px;word-break:break-word}
+table.pt-t td.d{font-family:-apple-system,"PingFang SC",sans-serif;color:#525e6b;line-height:1.6}
+table.pt-t th:nth-child(1),table.pt-t td:nth-child(1){width:34%}
+table.pt-t th:nth-child(2),table.pt-t td:nth-child(2){width:26%}
+table.pt-t th:nth-child(3),table.pt-t td:nth-child(3){width:40%}
+
+.note-box{border-left:3px solid var(--c-wc);background:#fff8fa;padding:8px 10px;border-radius:0 6px 6px 0;font-size:12px;line-height:1.7;color:#4a3540}
+.note-box.warn{border-left-color:var(--c-mask);background:#fffbf2;color:#4d4230}
+.note-box.bad{border-left-color:var(--accent);background:#fff5f7;color:#4a2028}
+.note-box.bad code{background:#fff;padding:1px 4px;border-radius:3px;font-family:var(--mono);font-size:11px}
+.vrpline{font:10.5px var(--mono);color:#a6b0bb;margin-top:6px;letter-spacing:.2px}
+.note-box ul{margin:4px 0 0;padding-left:16px}
+.note-box li{margin:2px 0}
+
+/* 右侧顶部的「这条命令」：用实参拼出的精确含义 */
+.gist{background:#f2f7ff;border:1px solid #dbe8fa;border-left:3px solid #2f6feb;
+  border-radius:0 6px 6px 0;padding:7px 10px;font-size:12.5px;color:#17395f;
+  line-height:1.55;margin-bottom:10px;word-break:break-word}
+.gist span{color:#7592bb;font-size:10.5px;letter-spacing:.5px;margin-right:7px}
+
+.ex{font:12px/1.7 var(--mono);padding:5px 8px;border-radius:5px;background:#f6f8fa;margin-bottom:5px;
+  cursor:pointer;border:1px solid transparent;white-space:pre-wrap;word-break:break-all}
+.ex:hover{border-color:var(--accent);background:#fff}
+.ex .c{color:#8b95a1;font-size:10.5px;font-family:-apple-system,"PingFang SC",sans-serif;display:block}
+
+.empty{color:#9aa5b1;font-size:12.5px;padding:10px 2px;line-height:1.8}
+.dtool{display:flex;align-items:center;gap:8px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px dashed var(--line)}
+.dtool .btn{font-size:12px;padding:4px 10px}
+.dtool span{font-size:10.5px;color:#a6b0bb}
+
+/* library */
+#libSearch{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:6px;outline:none;
+  font:12.5px var(--mono);margin-bottom:10px}
+#libSearch:focus{border-color:#b9c6d4}
+.libitem{padding:7px 8px;border-radius:6px;cursor:pointer;border:1px solid transparent;margin-bottom:2px}
+.libitem:hover{background:#f7f9fb;border-color:var(--line)}
+.libitem .s{font:12px var(--mono);color:#26303c;word-break:break-word;line-height:1.5}
+.libitem .b{font-size:11px;color:#8b95a1;margin-top:2px;line-height:1.5}
+.libcnt{font-size:11px;color:#95a0ac;margin-bottom:8px}
+.libgrp{font-size:11px;color:#6b7684;font-weight:600;letter-spacing:.4px;margin:14px 0 5px;
+  padding-bottom:3px;border-bottom:1px solid #eef1f4}
+.libgrp:first-of-type{margin-top:6px}
+.vtag{display:inline-block;font:10px var(--mono);padding:0 4px;border-radius:3px;background:#eef1f4;color:#6b7684;margin-right:5px}
+
+/* converter */
+.conv input{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:6px;outline:none;font:12.5px var(--mono)}
+.conv input:focus{border-color:#b9c6d4}
+.conv .row{display:flex;justify-content:space-between;font:11.5px var(--mono);padding:3px 0;border-bottom:1px dashed #eef1f4}
+.conv .row span:first-child{color:#8b95a1;font-family:-apple-system,"PingFang SC",sans-serif}
+.conv .row.bad span:last-child{color:var(--c-wc);font-size:11px;font-family:-apple-system,"PingFang SC",sans-serif}
+
+/* doc tab */
+.doc{font-size:12.5px;line-height:1.8;color:#3a4552}
+.doc h3{font-size:13px;margin:16px 0 6px;color:#1b2430}
+.doc h3:first-child{margin-top:0}
+.doc p{margin:4px 0}
+.doc pre{font:11.5px/1.75 var(--mono);background:#f7f9fb;border:1px solid var(--line);border-radius:7px;
+  padding:9px 10px;overflow:auto;margin:6px 0;color:#2b3542;white-space:pre}
+.doc code{font:11.5px var(--mono);background:#f2f4f7;padding:1px 4px;border-radius:3px}
+.doc ol,.doc ul{padding-left:18px;margin:5px 0}
+.doc li{margin:3px 0}
+.doc .k{color:var(--c-wc);font-weight:600}
+.flow{font:11.5px/1.9 var(--mono);background:#fbfcfd;border:1px solid var(--line);border-radius:8px;padding:10px 12px;overflow:auto;white-space:pre}
+.stack{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:9px;overflow:hidden;margin:7px 0}
+.layer{padding:8px 11px;background:#fbfcfd;border-bottom:1px solid var(--line);font-size:12px;color:#3a4552;line-height:1.55}
+.layer:nth-child(even){background:#f6f8fa}
+.layer:last-child{border-bottom:0}
+.layer .n{display:inline-block;font:10px var(--mono);color:#fff;background:var(--accent);border-radius:3px;
+  padding:0 4px;margin-right:6px;vertical-align:1px}
+.layer b{font-size:12px;color:#1b2430;margin-right:4px}
+.layer em{display:block;font:10.5px var(--mono);color:#95a0ac;margin-top:2px;font-style:normal;padding-left:20px}
+
+@media (max-width:1180px){
+  main{grid-template-columns:1fr;grid-template-rows:62vh auto auto;overflow:auto}
+  #termPane{order:1}
+  #notePane{order:2;height:300px;border-right:0;border-top:1px solid var(--line)}
+  #noteList{max-height:80px}
+  #sidePane{order:3;border-left:0;border-top:1px solid var(--line);min-height:480px}
+  .tabbody{overflow:visible}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><b>HCIP</b> VRP 命令行训练场 <small>离线模拟 · 无需真机</small></div>
+  <span class="vbadge" id="viewBadge">用户视图 &lt;Huawei&gt;</span>
+  <div class="spacer"></div>
+  <button class="btn" id="btnClear">清屏</button>
+</header>
+
+<main>
+  <!-- ========== 笔记 ========== -->
+  <aside class="pane" id="notePane">
+    <div class="pane-hd"><span class="dot"></span>快速记笔记
+      <div class="spacer"></div>
+      <button class="btn" id="btnNewNote" style="padding:1px 7px;font-size:11px">+ 新建</button>
+    </div>
+    <div id="noteList"></div>
+    <textarea id="noteBody" spellcheck="false" placeholder="「＋ 快速记下」记当前这条。&#10;&#10;多选：在终端里左键拖选多行，&#10;再点顶部的「记下框选 (N)」。&#10;&#10;写入格式：&#10;[视图] 命令&#10;// 注释"></textarea>
+    <div class="note-ft">
+      <button class="btn pri" id="btnInsert">＋ 快速记下</button>
+      <button class="btn" id="btnExport">导出 .md</button>
+    </div>
+  </aside>
+
+  <!-- ========== 终端 ========== -->
+  <section class="pane" id="termPane">
+    <div class="pane-hd"><span class="dot"></span>终端 · 自由输入
+      <div class="spacer"></div>
+      <button class="hbtn" id="btnSelNote" title="在终端里左键框选多行命令，再一次记下">记下框选</button>
+      <span class="hdr-hint" style="font-weight:400;letter-spacing:0">Tab 补全 ｜ ? 帮助 ｜ ↑↓ 历史 ｜ 左键框选多行可一次记下</span>
+    </div>
+    <div id="term"></div>
+    <div class="inputline"><span class="pr" id="prompt">&lt;Huawei&gt;</span><input id="cmd" autocomplete="off" spellcheck="false" autocapitalize="off"></div>
+    <div id="hintbar"></div>
+    <div id="cands"></div>
+  </section>
+
+  <!-- ========== 右栏 ========== -->
+  <aside class="pane" id="sidePane">
+    <div class="tabs">
+      <div class="tab on" data-tab="detail">命令详情</div>
+      <div class="tab" data-tab="lib">命令库</div>
+      <div class="tab" data-tab="arch">设计与数据</div>
+    </div>
+
+    <div class="tabbody on" id="tb-detail"></div>
+
+    <div class="tabbody" id="tb-lib">
+      <input id="libSearch" placeholder="搜索命令 / 关键字，如 反掩码、route-static">
+      <div id="libList"></div>
+    </div>
+
+    <div class="tabbody" id="tb-arch">
+      <div class="doc">
+        <h3>一、整体功能结构</h3>
+        <p>四层，自上而下依赖，命令引擎与界面完全解耦（可直接换成 Electron / 小程序壳）。</p>
+        <div class="stack">
+          <div class="layer"><span class="n">①</span><b>交互层</b> CLI 终端 · 笔记 · 详情面板
+            <em>输入 / Tab 补全 / ? 帮助 / ↑↓ 历史 / 候选 chips</em></div>
+          <div class="layer"><span class="n">②</span><b>引擎层</b> 命令树解析 · 补全 · 校验
+            <em>analyze() · suggest() · validate() · 纯函数、无 DOM 依赖</em></div>
+          <div class="layer"><span class="n">③</span><b>知识层</b> 命令树 / 参数类型表 / 释义
+            <em>VIEWS · PARAMS · info</em></div>
+          <div class="layer"><span class="n">④</span><b>持久层</b> 本地存储 · 导出
+            <em>localStorage · .md 导出</em></div>
+        </div>
+
+        <h3>二、为什么用「树」而不是命令列表</h3>
+        <p>VRP 的命令天然是一棵树：每个视图是一个根，关键字是边，参数是带类型的叶子。只有树结构才能同时支撑三件事——<b>按前缀补全</b>、<b>按位置校验</b>、<b>按层级渲染</b>。</p>
+        <p>扁平列表（<code>"ip address A B"</code> 字符串）做不到「当前光标处该填什么类型」，也就无法标注出「这里要反掩码，不是掩码」。</p>
+        <p>树还让缩写成为可能：解析时先精确匹配，再尝试唯一前缀——<code>int g 0/0/1</code> 能认出是 <code>interface GigabitEthernet0/0/1</code>；若多个关键字共享前缀（<code>i</code> → interface / ip / isis / info-center / ipv6），直接报 Ambiguous 并列出候选。笔记里落的始终是还原后的完整命令。</p>
+
+        <h3>三、数据组织：四个数据集</h3>
+        <p><b>1) 命令库 SPEC</b>：<span class="k">一行一条命令</span>，启动时编译成命令树。手写嵌套 JSON 在几百条命令时会失控，所以约定了一套极简写法——关键字照抄，参数写成 <code>&lt;类型[范围]{枚举}:语义&gt;</code>。</p>
+        <pre>// 一行 = 一条命令：视图 | 语法 | 去向
+{ v:'if', c:'ip address &lt;ipv4:接口IP地址&gt; &lt;mask:子网掩码&gt;' }
+{ v:'system', c:'interface &lt;ifname:接口名&gt;', to:'if' }
+{ v:'system', c:'vlan batch &lt;vlanlist:VLAN列表&gt;', rep:true }
+{ v:'acl',  c:'rule &lt;num[0-65534]:规则编号&gt; &lt;enum{permit,deny}:动作&gt;' }
+
+// 编译产物（运行时）：关键字为边，参数为带类型的叶子
+{ type:'param', param:'ipv4', role:'接口IP地址',
+  warnHost:true, children:[ ... ] }</pre>
+        <p>编译器会自动做三件事：<b>相同前缀合并</b>（<code>ip address</code> / <code>ip pool</code> 共用 <code>ip</code> 节点）、<b>类型继承</b>（<code>&lt;ipv4:…&gt;</code> 直接绑定校验器）、<b>语义挂载</b>（键含「IP/网关」自动开启主机位提示）。</p>
+        <p><b>2) 参数类型表 PARAMS</b>：类型 ↔ 校验器 ↔ 标签。类型是「形」，role 是「义」。</p>
+        <pre>{ "wildcard": {
+    "label": "反掩码",
+    "sample": "0.0.0.255",
+    "check": 把值取反后必须是连续掩码
+  },
+  "ipv4":   { "label": "IP地址" },
+  "mask":   { "label": "子网掩码" },
+  "ifname": { "label": "接口名" } }</pre>
+        <p><b>3) 释义 info</b>：挂在 SPEC 的对应行上，编译后落到命令末节点，随解析结果自动带出。</p>
+        <p><b>4) 笔记 notes</b>：<code>{id,title,body,updated}</code>，纯文本，本地存储。快速记笔记只写三行——提示符、命令、<code>// 注释</code>，注释取自该命令节点的 <code>info.brief</code> 或 <code>cmd</code>，567 条命令全部有注释。</p>
+        <p id="dbStat" style="color:#8b95a1"></p>
+
+        <h3>四、三个关键设计决策</h3>
+        <ol>
+          <li><b>掩码与反掩码是两个独立类型</b>，不是同一个 <code>ipv4</code>。因为它们的非法值集合不同：<code>0.0.0.255</code> 在掩码位非法、在反掩码位合法。若合并成一种类型，就只能做宽松校验，学习价值归零。</li>
+          <li><b>role 描述语义，param 描述类型</b>。<code>ip route-static 0.0.0.0 0.0.0.0 192.168.1.1</code> 里第三个参数类型是 IPv4、语义是「下一跳（默认路由时即网关）」，两个维度必须分开存。</li>
+          <li><b>释义挂在树上，不建独立文档库</b>。避免「命令改了、文档没改」的漂移；渲染时用解析出的 path 反查最近的 info。</li>
+        </ol>
+
+        <h3>五、扩展到全量 VRP 手册</h3>
+        <ul>
+          <li>命令树可批量导入：华为 VRP 帮助文本 <code>display xxx ?</code> 的输出就是天然的层级语法，写个转换脚本即可生成 nodes。</li>
+          <li>参数类型表保持人工维护（约 40 种），这是质量的护城河。</li>
+          <li>引擎纯函数、无 DOM 依赖，可直接跑单测；也可搬到服务端做「命令批改」。</li>
+        </ul>
+
+        <h3>六、要不要把 eNSP 的模拟库内置进来</h3>
+        <p><b>结论：内置「语法树」，不内置「模拟器」。</b></p>
+        <p>eNSP 并没有一份可直接导出的命令表。设备行为来自 VRP 固件镜像，帮助文本编译在镜像内部，运行靠 VirtualBox 起虚拟机。所谓「内置它的数据库」，实际等于<b>随包分发固件 + 自带虚拟化层</b>：体积从 76 KB 涨到 GB 级，而且固件分发不在授权范围内，浏览器里也跑不起来。</p>
+        <p>真正值得内置的是三层信息，且都能独立、合法地拿到：</p>
+        <ul>
+          <li><b>语法骨架</b>：视图 → 关键字 → 参数位置</li>
+          <li><b>参数契约</b>：类型、取值范围、默认值、可选/必选</li>
+          <li><b>释义与易错</b>：只能自己写——这恰好是这类工具唯一不可替代的部分</li>
+        </ul>
+        <p>分三步走：</p>
+        <ol>
+          <li><b>现在</b>：手写 HCIP 高频 300–400 条 + 20 余种参数类型，全量约 160 KB，秒开、离线。</li>
+          <li><b>扩容</b>：用脚本解析设备 <code>?</code> 输出（缩进 + <code>&lt;参数&gt;</code> 标记）批量生成语法骨架，释义人工补。全量 VRP 约 5–15 MB JSON，按视图懒加载即可。</li>
+          <li><b>若哪天要真实回显</b>：不做本地模拟器，改做「连 eNSP」——eNSP 设备支持 <code>telnet 127.0.0.1:端口</code>，本应用只当终端前端，回显 100% 真实，且不打包任何固件。</li>
+        </ol>
+        <p style="color:#8b95a1">当前版本按第一步交付，不依赖 eNSP、不联网、不碰固件。</p>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<!-- ==================================================================== -->
+<!-- 核心引擎：纯数据 + 纯函数，无 DOM 依赖                                 -->
+<!-- ==================================================================== -->
+<script id="vrp-core">
+var VRP = (function () {
+'use strict';
+
+/* ============ 0. 基础工具 ============ */
+var IPRE = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+function isIp(s){ var m = IPRE.exec(s); return !!m && m.slice(1).every(function(x){ return +x <= 255; }); }
+function toBits(s){ return s.split('.').map(function(n){ return (+n).toString(2).padStart(8,'0'); }).join(''); }
+function fromBits(b){ return [0,8,16,24].map(function(i){ return parseInt(b.substr(i,8),2); }).join('.'); }
+function invBits(b){ return b.split('').map(function(c){ return c === '1' ? '0' : '1'; }).join(''); }
+function isMask(s){ return isIp(s) && /^1*0*$/.test(toBits(s)); }
+function prefixOf(s){ var b = toBits(s), i = b.indexOf('0'); return i < 0 ? 32 : i; }
+function wildcardOf(m){ return fromBits(invBits(toBits(m))); }
+function maskOfWild(w){ return fromBits(invBits(toBits(w))); }
+function eq(a,b){ return a.toLowerCase() === b.toLowerCase(); }
+function starts(a,b){ return a.toLowerCase().indexOf(b.toLowerCase()) === 0; }
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/* ============ 1. 参数类型注册表 ============ */
+var IF_TYPES = [
+  { re:/^(gigabitethernet|ge|gi|g)(\d+\/\d+\/\d+)$/i, canon:'GigabitEthernet', need:3 },
+  { re:/^(xgigabitethernet|xge|10ge)(\d+\/\d+\/\d+)$/i, canon:'XGigabitEthernet', need:3 },
+  { re:/^(eth-trunk|eth|etrunk)(\d+)$/i, canon:'Eth-Trunk', need:1 },
+  { re:/^(nve)(\d*)$/i, canon:'Nve', need:0 },
+  { re:/^(loopback|lo)(\d+)$/i, canon:'LoopBack', need:1 },
+  { re:/^(vlanif|vlan)(\d+)$/i, canon:'Vlanif', need:1 },
+  { re:/^(serial|s)(\d+\/\d+\/\d+)$/i, canon:'Serial', need:3 },
+  { re:/^(tunnel)(\d+(\/\d+)*)$/i, canon:'Tunnel', need:0 },
+  { re:/^(null)(\d*)$/i, canon:'NULL', need:0 }
+];
+
+var PARAMS = {
+  ifname: {
+    label: '接口名', sample: 'GigabitEthernet0/0/0', color: 'if',
+    samples: ['GigabitEthernet0/0/0','GigabitEthernet0/0/1','GigabitEthernet0/0/2','Eth-Trunk1','Vlanif10','LoopBack0','NULL0'],
+    hint: '全称或简写：GigabitEthernet0/0/1、g0/0/1、g 0/0/1',
+    check: function(v){
+      var raw = v.replace(/\s+/g,'');
+      for (var i=0;i<IF_TYPES.length;i++){
+        var t = IF_TYPES[i], m = t.re.exec(raw);
+        if (m){
+          var num = m[2];
+          if (num == null) return { ok:false, msg:'“' + v + '” 接口名缺少编号', hint:'如 LoopBack0、Eth-Trunk1' };
+          if (t.need === 0) return { ok:true, canon: t.canon + num };
+          var parts = num.split('/');
+          if (parts.length !== t.need){
+            return { ok:false, msg:'“' + v + '” 接口编号位数不对',
+                     hint: t.canon + ' 需要 ' + t.need + ' 段编号，如 ' + t.canon + '0/0/0' };
+          }
+          return { ok:true, canon: t.canon + num,
+                   note: (t.canon + num) !== v ? '规范写法 ' + t.canon + num : '' };
+        }
+      }
+      return { ok:false, msg:'“' + v + '” 不是合法的接口名',
+               hint:'形如 GigabitEthernet0/0/0、Eth-Trunk1、Vlanif10、LoopBack0' };
+    }
+  },
+  ipv4: {
+    label: 'IP地址', sample: '192.168.1.1', color: 'ip',
+    hint: '点分十进制 IPv4 地址，每段 0-255',
+    check: function(v, node){
+      if (!isIp(v)) return { ok:false, msg:'“' + v + '” 不是合法的 IPv4 地址', hint:'格式 a.b.c.d，每段 0-255' };
+      var note = '';
+      if (v === '0.0.0.0') note = '0.0.0.0 表示任意 / 默认';
+      else if (node && node.warnHost){
+        var last = +v.split('.')[3];
+        if (last === 0) note = '末位为 0，通常是网段地址，一般不配在接口上';
+        else if (last === 255) note = '末位为 255，通常是广播地址，一般不配在接口上';
+      }
+      return { ok:true, note: note };
+    }
+  },
+  mask: {
+    label: '子网掩码', sample: '255.255.255.0', color: 'mask',
+    samples: ['255.255.255.0','255.255.255.128','255.255.255.252'],
+    hint: '点分十进制子网掩码（也可写前缀长度 24）',
+    check: function(v){
+      if (/^\d{1,2}$/.test(v)){
+        if (+v <= 32) return { ok:true, canon: fromBits('1'.repeat(+v) + '0'.repeat(32-+v)),
+                               note:'前缀长度写法 /' + v + ' ≡ ' + fromBits('1'.repeat(+v)+'0'.repeat(32-+v)) };
+        return { ok:false, msg:'前缀长度必须在 0-32 之间' };
+      }
+      if (!isIp(v)) return { ok:false, msg:'“' + v + '” 不是合法掩码', hint:'如 255.255.255.0，或直接写 24' };
+      if (!isMask(v)){
+        var inv = fromBits(invBits(toBits(v)));
+        // 典型误用：把反掩码填进了掩码位
+        if (isMask(inv)){
+          return { ok:false, maskConfused:true,
+                   msg:'此处需要子网掩码，' + v + ' 是反掩码',
+                   hint:'把每一位取反：' + v + ' → ' + inv + '（/' + prefixOf(inv) + '）' };
+        }
+        return { ok:false, msg:'“' + v + '” 不是连续的子网掩码（二进制 1 必须连续）',
+                 hint:'常见合法值：255.255.255.0 / 255.255.255.252；若你要写的是反掩码，应使用 0.0.0.255 形式' };
+      }
+      return { ok:true, note:'/' + prefixOf(v) + '，反掩码为 ' + wildcardOf(v) };
+    }
+  },
+  wildcard: {
+    label: '反掩码', sample: '0.0.0.255', color: 'wc',
+    samples: ['0.0.0.255','0.0.0.63','0.0.0.0'],
+    hint: '通配符掩码：0 表示必须匹配，1 表示忽略。是子网掩码取反',
+    check: function(v){
+      if (!isIp(v)) return { ok:false, msg:'“' + v + '” 不是合法的反掩码', hint:'形如 0.0.0.255' };
+      var inv = maskOfWild(v);
+      // 典型误用：把子网掩码填进来
+      if (isMask(v) && v !== '0.0.0.0' && v !== '255.255.255.255'){
+        return { ok:false, maskConfused:true,
+                 msg:'此处需要反掩码，' + v + ' 是子网掩码',
+                 hint:'把每一位取反：' + v + ' → ' + inv };
+      }
+      if (!isMask(inv)){
+        return { ok:false, msg:'“' + v + '” 不是合法反掩码（取反后不是连续掩码）',
+                 hint:'合法反掩码形如 0.0.0.255、0.0.0.3、0.0.0.0' };
+      }
+      return { ok:true, note:'等价子网掩码 ' + inv + '（/' + prefixOf(inv) + '）' };
+    }
+  },
+  num: {
+    label: '整数', sample: '1', color: 'num',
+    hint: '整数',
+    check: function(v, node){
+      if (!/^\d+$/.test(v)) return { ok:false, msg:'“' + v + '” 不是整数' };
+      var n = +v, r = node && node.range;
+      if (r && (n < r[0] || n > r[1])) return { ok:false, msg:'取值范围 ' + r[0] + '-' + r[1] + '，' + v + ' 超出范围' };
+      return { ok:true };
+    }
+  },
+  enum: {
+    label: '枚举', sample: '', color: 'num',
+    hint: '从固定取值中选择',
+    check: function(v, node){
+      var os = (node && node.options) || [];
+      for (var i=0;i<os.length;i++) if (eq(os[i], v)) return { ok:true, canon: os[i] };
+      return { ok:false, msg:'“' + v + '” 不是可选值', hint:'可选：' + os.join(' / ') };
+    }
+  },
+  name: {
+    label: '名称', sample: 'HCIP-LAB', color: 'str',
+    hint: '字母、数字、下划线、连字符、点',
+    check: function(v){
+      if (!/^[A-Za-z0-9_.\-]+$/.test(v)) return { ok:false, msg:'名称只能包含字母、数字、_ - .' };
+      if (v.length > 246) return { ok:false, msg:'名称过长（≤246 字符）' };
+      return { ok:true };
+    }
+  },
+  aclnum: {
+    label: 'ACL编号', sample: '3000', color: 'num',
+    samples: ['2000','3000'],
+    hint: '基本 ACL 2000-2999，高级 ACL 3000-3999',
+    check: function(v){
+      if (!/^\d{4}$/.test(v)) return { ok:false, msg:'ACL 编号为 4 位数字' };
+      var n = +v;
+      if (n < 2000 || n > 3999) return { ok:false, msg:'ACL 编号范围 2000-3999' };
+      return { ok:true, note: n < 3000 ? '基本 ACL' : '高级 ACL' };
+    }
+  },
+  vlanid: {
+    label: 'VLAN ID', sample: '10', color: 'num',
+    hint: '1-4094',
+    check: function(v){
+      if (!/^\d+$/.test(v)) return { ok:false, msg:'VLAN ID 必须是整数' };
+      if (+v < 1 || +v > 4094) return { ok:false, msg:'VLAN ID 范围 1-4094' };
+      return { ok:true };
+    }
+  },
+  vlanlist: {
+    label: 'VLAN列表', sample: '10', color: 'num',
+    hint: '单个或多个 VLAN：10 20 30、10 to 20',
+    check: function(v){
+      var s = v.replace(/\s+/g, '');
+      if (!/^\d+(,\d+)*$/.test(s) && !/^\d+to\d+$/i.test(s))
+        return { ok:false, msg:'“' + v + '” 不是合法 VLAN 列表', hint:'如 10、10 20 30、10 to 20' };
+      var nums = s.replace(/to/gi, ',').split(',').map(Number);
+      for (var i=0;i<nums.length;i++)
+        if (nums[i] < 1 || nums[i] > 4094) return { ok:false, msg:'VLAN ID 范围 1-4094' };
+      return { ok:true };
+    }
+  },
+  asnum: {
+    label: 'AS号', sample: '100', color: 'num',
+    hint: '1-4294967295，也可写点分格式 0.1',
+    check: function(v){
+      if (/^\d+$/.test(v)) return (+v >= 1 && +v <= 4294967295) ? { ok:true } : { ok:false, msg:'AS 号范围 1-4294967295' };
+      if (/^\d+\.\d+$/.test(v)) return { ok:true };
+      return { ok:false, msg:'AS 号写成 100 或 0.1' };
+    }
+  },
+  ipv6addr: {
+    label: 'IPv6地址', sample: '2001:db8::1', color: 'ip',
+    hint: '形如 2001:db8::1，支持 :: 压缩，每段 1-4 位十六进制',
+    check: function(v){
+      if (!/^[0-9a-f:]+$/i.test(v) || v.indexOf(':') < 0)
+        return { ok:false, msg:'“' + v + '” 不是合法的 IPv6 地址', hint:'形如 2001:db8::1' };
+      var dbl = v.split('::').length - 1;
+      if (dbl > 1) return { ok:false, msg:':: 只能出现一次' };
+      var segs = v.split(':').filter(function(x){ return x !== ''; });
+      for (var i=0;i<segs.length;i++)
+        if (!/^[0-9a-f]{1,4}$/i.test(segs[i])) return { ok:false, msg:'每段应为 1-4 位十六进制' };
+      if (dbl === 0 && segs.length !== 8) return { ok:false, msg:'未压缩的 IPv6 应有 8 段，当前 ' + segs.length + ' 段' };
+      if (dbl === 1 && segs.length > 7) return { ok:false, msg:'使用 :: 压缩时段数不能超过 7' };
+      return { ok:true };
+    }
+  },
+  mac: {
+    label: 'MAC地址', sample: '5489-98a1-0001', color: 'str',
+    hint: '格式 XXXX-XXXX-XXXX',
+    check: function(v){
+      var t = v.replace(/[:.]/g, '-');
+      if (/^[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}$/i.test(t))
+        return { ok:true, canon:t.toLowerCase() };
+      return { ok:false, msg:'MAC 格式应为 5489-98a1-0001' };
+    }
+  },
+  areaid: {
+    label: '区域ID', sample: '0', color: 'num',
+    hint: '十进制 0-4294967295，或点分格式 0.0.0.0',
+    check: function(v){
+      if (/^\d+$/.test(v)) return (+v <= 4294967295) ? { ok:true } : { ok:false, msg:'区域 ID 超出范围' };
+      if (isIp(v)) return { ok:true };
+      return { ok:false, msg:'区域 ID 写成 0 或 0.0.0.0' };
+    }
+  },
+  str: {
+    label: '字符串', sample: 'to-core', color: 'str',
+    hint: '任意文本，可含空格（到行尾）',
+    check: function(){ return { ok:true }; }
+  }
+};
+
+/* ============ 2. 视图定义 ============ */
+var VIEWMETA = {
+  user:     { name:'用户视图',        tpl:'<{h}>',                          enter:null },
+  system:   { name:'系统视图',        tpl:'[{h}]',                          enter:{from:'user', sample:'system-view', syntax:'system-view'} },
+  if:       { name:'接口视图',        tpl:'[{h}-{ifName}]', bind:'ifName',
+              enter:{from:'system', sample:'interface GigabitEthernet0/0/0', syntax:'interface ⟨接口名⟩'} },
+  ethTrunk: { name:'Eth-Trunk 视图',  tpl:'[{h}-Eth-Trunk{trunkId}]', bind:'trunkId',
+              enter:{from:'system', sample:'interface Eth-Trunk 1', syntax:'interface Eth-Trunk ⟨编号⟩'} },
+  vlan:     { name:'VLAN 视图',       tpl:'[{h}-vlan{vlanId}]', bind:'vlanId',
+              enter:{from:'system', sample:'vlan 10', syntax:'vlan ⟨VLAN ID⟩'} },
+  ospf:     { name:'OSPF 视图',       tpl:'[{h}-ospf-{ospfPid}]', bind:'ospfPid',
+              enter:{from:'system', sample:'ospf 1', syntax:'ospf ⟨进程号⟩'} },
+  ospfArea: { name:'OSPF 区域视图',   tpl:'[{h}-ospf-{ospfPid}-area-{areaId}]', bind:'areaId',
+              enter:{from:'ospf', sample:'area 0', syntax:'area ⟨区域ID⟩'} },
+  isis:     { name:'IS-IS 视图',      tpl:'[{h}-isis-{isisPid}]', bind:'isisPid',
+              enter:{from:'system', sample:'isis 1', syntax:'isis ⟨进程号⟩'} },
+  bgp:      { name:'BGP 视图',        tpl:'[{h}-bgp]',
+              enter:{from:'system', sample:'bgp 100', syntax:'bgp ⟨AS号⟩'} },
+  bgpAf:    { name:'BGP IPv4 地址族', tpl:'[{h}-bgp-af-ipv4]',
+              enter:{from:'bgp', sample:'ipv4-family unicast', syntax:'ipv4-family unicast'} },
+  acl:      { name:'ACL 视图',        tpl:'[{h}-acl-{aclType}-{aclNum}]', bind:'aclNum',
+              enter:{from:'system', sample:'acl 3000', syntax:'acl ⟨ACL编号⟩'} },
+  pool:     { name:'地址池视图',      tpl:'[{h}-ip-pool-{poolName}]', bind:'poolName',
+              enter:{from:'system', sample:'ip pool 1', syntax:'ip pool ⟨地址池名称⟩'} },
+  aaa:      { name:'AAA 视图',        tpl:'[{h}-aaa]',
+              enter:{from:'system', sample:'aaa', syntax:'aaa'} },
+  ui:       { name:'VTY 视图',        tpl:'[{h}-ui-vty0-4]',
+              enter:{from:'system', sample:'user-interface vty 0 4', syntax:'user-interface vty ⟨起始⟩ ⟨结束⟩'} },
+  mpls:     { name:'MPLS 视图',       tpl:'[{h}-mpls]',
+              enter:{from:'system', sample:'mpls', syntax:'mpls'} },
+  pim:      { name:'PIM 视图',        tpl:'[{h}-pim]',
+              enter:{from:'system', sample:'pim', syntax:'pim'} },
+  rp:       { name:'Route-Policy 视图', tpl:'[{h}-route-policy-{rpName}]', bind:'rpName', bindType:'name',
+              enter:{from:'system', sample:'route-policy RP1 permit node 10', syntax:'route-policy ⟨名称⟩ permit node ⟨节点号⟩'} },
+  stpRegion:{ name:'MST 域视图',     tpl:'[{h}-mst-region]',
+              enter:{from:'system', sample:'stp region-configuration', syntax:'stp region-configuration'} },
+  ospfv3:   { name:'OSPFv3 视图',    tpl:'[{h}-ospfv3-{ospfv3Pid}]', bind:'ospfv3Pid',
+              enter:{from:'system', sample:'ospfv3 1', syntax:'ospfv3 ⟨进程号⟩'} },
+  bgp6:     { name:'BGP IPv6 地址族', tpl:'[{h}-bgp-af-ipv6]',
+              enter:{from:'bgp', sample:'ipv6-family unicast', syntax:'ipv6-family unicast'} },
+  rip:      { name:'RIP 视图',       tpl:'[{h}-rip-{ripPid}]', bind:'ripPid',
+              enter:{from:'system', sample:'rip 1', syntax:'rip ⟨进程号⟩'} },
+  pbr:      { name:'策略路由视图',   tpl:'[{h}-policy-based-route-{pbrName}]', bind:'pbrName', bindType:'name',
+              enter:{from:'system', sample:'policy-based-route PBR1 permit node 10', syntax:'policy-based-route ⟨名称⟩ permit node ⟨节点号⟩'} },
+  qosCls:   { name:'流分类视图',     tpl:'[{h}-classifier-{clsName}]', bind:'clsName', bindType:'name',
+              enter:{from:'system', sample:'traffic classifier c1 operator or', syntax:'traffic classifier ⟨名称⟩ operator ⟨or|and⟩'} },
+  qosBeh:   { name:'流行为视图',     tpl:'[{h}-behavior-{behName}]', bind:'behName',
+              enter:{from:'system', sample:'traffic behavior b1', syntax:'traffic behavior ⟨名称⟩'} },
+  qosPol:   { name:'流策略视图',     tpl:'[{h}-trafficpolicy-{polName}]', bind:'polName',
+              enter:{from:'system', sample:'traffic policy p1', syntax:'traffic policy ⟨名称⟩'} },
+  smartLink:{ name:'Smart Link 视图', tpl:'[{h}-smlk-group{slGroup}]', bind:'slGroup',
+              enter:{from:'system', sample:'smart-link group 1', syntax:'smart-link group ⟨组号⟩'} },
+  rrpp:     { name:'RRPP 域视图',    tpl:'[{h}-rrpp-domain{rrppId}]', bind:'rrppId',
+              enter:{from:'system', sample:'rrpp domain 1', syntax:'rrpp domain ⟨域ID⟩'} },
+  radius:   { name:'RADIUS 模板视图', tpl:'[{h}-radius-{radiusName}]', bind:'radiusName',
+              enter:{from:'system', sample:'radius-server template rd1', syntax:'radius-server template ⟨模板名⟩'} },
+  vrf:      { name:'VPN 实例视图',   tpl:'[{h}-vpn-instance-{vrfName}]', bind:'vrfName',
+              enter:{from:'system', sample:'ip vpn-instance VPN1', syntax:'ip vpn-instance ⟨名称⟩'} },
+  bgpVpn:   { name:'BGP VPNv4 地址族', tpl:'[{h}-bgp-vpnv4]',
+              enter:{from:'bgp', sample:'ipv4-family vpnv4', syntax:'ipv4-family vpnv4'} },
+  mplsLdp:  { name:'MPLS LDP 视图',  tpl:'[{h}-mpls-ldp]',
+              enter:{from:'system', sample:'mpls ldp', syntax:'mpls ldp'} },
+  msdp:     { name:'MSDP 视图',      tpl:'[{h}-msdp]',
+              enter:{from:'system', sample:'msdp', syntax:'msdp'} },
+  dhcpv6:   { name:'DHCPv6 地址池视图', tpl:'[{h}-dhcpv6-pool-{pool6Name}]', bind:'pool6Name',
+              enter:{from:'system', sample:'dhcpv6 pool p6', syntax:'dhcpv6 pool ⟨名称⟩'} }
+};
+
+/* 关键字提示（同一前缀被多条命令复用时，避免提示串味） */
+var KEYHELP = {
+  display:'查看状态与配置（所有视图可用）', undo:'取消某项配置', ip:'IP 相关', network:'网段 / 宣告',
+  peer:'BGP 对等体', source:'匹配源地址', destination:'匹配目的地址', apply:'执行动作', 'if-match':'匹配条件',
+  port:'端口相关', vlan:'VLAN 相关', 'route-static':'静态路由', pool:'地址池', 'ipv4-family':'IPv4 地址族',
+  'link-type':'链路类型', 'allow-pass':'允许通过的 VLAN', pvid:'端口 PVID', hybrid:'Hybrid 端口',
+  ospf:'OSPF 相关', isis:'IS-IS 相关', mpls:'MPLS 相关', vrrp:'VRRP 相关', rule:'ACL 规则',
+  protocol:'协议', 'default-port':'端口', stp:'生成树', 'local-user':'本地用户', lease:'租期',
+  'traffic-filter':'流量过滤', nat:'地址转换', 'lsp-trigger':'LSP 触发策略', 'static-rp':'静态 RP'
+};
+
+/* 全局别名（VRP 本身支持唯一前缀补全，这里只补非前缀式的常用简写） */
+var ALIAS = { display:['dis'], interface:['int'], 'system-view':['sys'],
+              'current-configuration':['cur'], 'routing-table':['rt'], 'ipv4-family':['af'] };
+
+/* ============ 3. 标准命令库：一行一条，编译成树 ============ */
+/* 语法：<类型[范围]{枚举}:语义>   v=所属视图  to=进入视图  out=回显  pop/reset=返回 */
+var SPEC = [
+  /* ---------------- 用户视图 ---------------- */
+  { v:'user', c:'system-view', to:'system', d:'进入系统视图' },
+  { v:'user', c:'display version', out:'version', d:'查看设备版本' },
+  { v:'user', c:'display current-configuration', out:'config', d:'查看当前配置' },
+  { v:'user', c:'display saved-configuration', out:'saved', d:'查看下次启动配置' },
+  { v:'user', c:'display clock', out:'clock', d:'查看系统时间' },
+  { v:'user', c:'display ip routing-table', out:'route', d:'查看路由表' },
+  { v:'user', c:'display ip routing-table protocol <enum{static,ospf,isis,bgp,direct}:路由协议>', out:'route', d:'按协议查看路由' },
+  { v:'user', c:'display ip interface brief', out:'ifbrief', d:'查看接口 IP 与状态' },
+  { v:'user', c:'display interface <ifname:接口名>', out:'ifdetail', d:'查看接口详细状态' },
+  { v:'user', c:'display vlan', out:'vlan', d:'查看 VLAN 信息' },
+  { v:'user', c:'display vlan <vlanid:VLAN ID>', out:'vlan', d:'查看指定 VLAN' },
+  { v:'user', c:'display port vlan', out:'portvlan', d:'查看端口 VLAN' },
+  { v:'user', c:'display mac-address', out:'mac', d:'查看 MAC 地址表' },
+  { v:'user', c:'display arp all', out:'arp', d:'查看 ARP 表' },
+  { v:'user', c:'display stp brief', out:'stp', d:'查看生成树端口状态' },
+  { v:'user', c:'display eth-trunk <num[0-127]:Eth-Trunk编号>', out:'trunk', d:'查看链路聚合组' },
+  { v:'user', c:'display ospf peer', out:'ospfpeer', d:'查看 OSPF 邻居' },
+  { v:'user', c:'display ospf routing', out:'ospfroute', d:'查看 OSPF 路由' },
+  { v:'user', c:'display ospf lsdb', out:'ospflsdb', d:'查看 OSPF 链路状态库' },
+  { v:'user', c:'display ospf interface', out:'ospfif', d:'查看 OSPF 接口' },
+  { v:'user', c:'display isis peer', out:'isispeer', d:'查看 IS-IS 邻居' },
+  { v:'user', c:'display isis route', out:'isisroute', d:'查看 IS-IS 路由' },
+  { v:'user', c:'display bgp peer', out:'bgppeer', d:'查看 BGP 邻居' },
+  { v:'user', c:'display bgp routing-table', out:'bgproute', d:'查看 BGP 路由' },
+  { v:'user', c:'display vrrp', out:'vrrp', d:'查看 VRRP 状态' },
+  { v:'user', c:'display ip pool', out:'ippool', d:'查看地址池' },
+  { v:'user', c:'display lldp neighbor brief', out:'lldp', d:'查看 LLDP 邻居' },
+  { v:'user', c:'display cpu-usage', out:'cpu', d:'查看 CPU 占用' },
+  { v:'user', c:'display memory-usage', out:'mem', d:'查看内存占用' },
+  { v:'user', c:'display users', out:'users', d:'查看在线用户' },
+  { v:'user', c:'display logbuffer', out:'log', d:'查看日志缓冲区' },
+  { v:'user', c:'ping <ipv4:目的IP>', out:'ping', d:'连通性测试' },
+  { v:'user', c:'ping <ipv4:目的IP> -c <num[1-65535]:报文个数>', out:'ping', d:'指定报文个数' },
+  { v:'user', c:'tracert <ipv4:目的IP>', out:'tracert', d:'逐跳路径跟踪' },
+  { v:'user', c:'save', out:'save', d:'保存配置' },
+  { v:'user', c:'reboot', out:'reboot', d:'重启设备' },
+  { v:'user', c:'reset saved-configuration', out:'reset', d:'清除配置文件' },
+  { v:'user', c:'screen-length 0 temporary', out:'ok', d:'关闭分屏显示' },
+
+  /* ---------------- 系统视图 ---------------- */
+  { v:'system', c:'sysname <name:设备名>', out:'ok', d:'修改设备名',
+    info:{ brief:'修改设备名，提示符同步变化。', example:['sysname HCIP-AR1'],
+           pitfall:['名字只影响本机显示，不参与任何协议协商'] } },
+  { v:'system', c:'clock timezone <name:时区名> add <num[0-12]:偏移小时>', out:'ok', d:'设置时区' },
+  { v:'system', c:'header login information <str:登录标语>', out:'ok', d:'配置登录提示信息' },
+  { v:'system', c:'interface <ifname:接口名>', to:'if', d:'进入接口视图',
+    info:{ brief:'进入指定接口的配置视图。提示符变为 [设备名-接口名]，IP、VLAN、开销都在这里配。',
+           example:['interface GigabitEthernet0/0/0','int g 0/0/0','interface Eth-Trunk 1','interface Vlanif 10'],
+           pitfall:['必须写槽位编号 GigabitEthernet0/0/0，只写 GigabitEthernet 进不去',
+                    '简写 g 0/0/0（中间有空格）和 g0/0/0 都合法',
+                    'Eth-Trunk 接口会进入独立的 Eth-Trunk 视图'] } },
+  { v:'system', c:'vlan <vlanid:VLAN ID>', to:'vlan', d:'创建并进入 VLAN 视图' },
+  { v:'system', c:'vlan batch <vlanlist:VLAN列表>', out:'ok', d:'批量创建 VLAN', rep:true,
+    info:{ brief:'一次创建多个 VLAN，可空格分隔或写范围。', example:['vlan batch 10 20 30','vlan batch 10 to 20'],
+           pitfall:['已存在的 VLAN 不会报错，直接跳过'] } },
+  { v:'system', c:'stp mode <enum{stp,rstp,mstp}:生成树模式>', out:'ok', d:'设置生成树模式',
+    info:{ brief:'华为交换机默认 MSTP。RSTP 收敛快，STP 兼容老设备。',
+           pitfall:['两端模式不一致会导致端口震荡','改模式会触发一次拓扑收敛'] } },
+  { v:'system', c:'stp priority <num[0-61440]:桥优先级>', out:'ok', d:'设置桥优先级' },
+  { v:'system', c:'stp root primary', out:'ok', d:'指定本机为根桥' },
+  { v:'system', c:'stp bpdu-protection', out:'ok', d:'开启 BPDU 保护' },
+  { v:'system', c:'stp edged-port default', out:'ok', d:'端口默认设为边缘端口' },
+  { v:'system', c:'lldp enable', out:'ok', d:'开启 LLDP' },
+  { v:'system', c:'ip route-static <ipv4:目的网段> <mask:子网掩码> <ipv4:下一跳IP>', out:'route', d:'配置静态路由',
+    info:{ brief:'目的网段 + 子网掩码 + 下一跳。默认路由写 0.0.0.0 0.0.0.0，此时下一跳就是网关地址。',
+           example:['ip route-static 192.168.2.0 255.255.255.0 10.0.0.2',
+                    'ip route-static 0.0.0.0 0.0.0.0 192.168.1.1'],
+           pitfall:['第二个参数是子网掩码 255.255.255.0，不是反掩码 0.0.0.255 —— 与 OSPF network、ACL source 相反',
+                    '掩码也可写前缀长度 24',
+                    '下一跳必须直连可达，否则路由不优'] } },
+  { v:'system', c:'ip route-static <ipv4:目的网段> <mask:子网掩码> <ipv4:下一跳IP> preference <num[1-255]:优先级>', out:'route', d:'静态路由指定优先级' },
+  { v:'system', c:'undo ip route-static <ipv4:目的网段> <mask:子网掩码> <ipv4:下一跳IP>', out:'ok', d:'删除静态路由' },
+  { v:'system', c:'ospf <num[1-65535]:进程号>', to:'ospf', d:'启动 OSPF 进程',
+    info:{ brief:'进入 OSPF 视图。进程号本地有效，两端不要求一致。',
+           pitfall:['进程号不同不影响建邻接，Router ID 和区域号才影响'] } },
+  { v:'system', c:'isis <num[1-65535]:进程号>', to:'isis', d:'启动 IS-IS 进程' },
+  { v:'system', c:'bgp <asnum:AS号>', to:'bgp', d:'启动 BGP 进程' },
+  { v:'system', c:'acl <aclnum:ACL编号>', to:'acl', d:'创建/进入 ACL 视图',
+    info:{ brief:'2000-2999 基本 ACL 只看源地址，3000-3999 高级 ACL 可匹配源/目的/协议/端口。',
+           example:['acl 3000','acl 2000'] } },
+  { v:'system', c:'ip ip-prefix <name:前缀列表名> permit <ipv4:目的网段> <num[0-32]:掩码长度>', out:'ok', d:'配置前缀列表' },
+  { v:'system', c:'route-policy <name:路由策略名> permit node <num[0-65535]:节点号>', to:'rp', d:'创建路由策略节点' },
+  { v:'system', c:'dhcp enable', out:'ok', d:'全局开启 DHCP' },
+  { v:'system', c:'ip pool <name:地址池名称>', to:'pool', d:'创建全局地址池' },
+  { v:'system', c:'aaa', to:'aaa', d:'进入 AAA 视图' },
+  { v:'system', c:'user-interface vty 0 4', to:'ui', d:'进入 VTY 用户界面视图' },
+  { v:'system', c:'telnet server enable', out:'ok', d:'开启 Telnet 服务' },
+  { v:'system', c:'stelnet server enable', out:'ok', d:'开启 STelnet（SSH）服务' },
+  { v:'system', c:'ssh user <name:用户名> authentication-type password', out:'ok', d:'配置 SSH 用户认证方式' },
+  { v:'system', c:'ntp-service unicast-server <ipv4:NTP服务器地址>', out:'ok', d:'指定 NTP 服务器' },
+  { v:'system', c:'snmp-agent', out:'ok', d:'开启 SNMP 代理' },
+  { v:'system', c:'info-center enable', out:'ok', d:'开启信息中心' },
+  { v:'system', c:'multicast routing-enable', out:'ok', d:'开启组播路由' },
+  { v:'system', c:'pim', to:'pim', d:'进入 PIM 视图' },
+  { v:'system', c:'mpls lsr-id <ipv4:LSR ID>', out:'ok', d:'配置 MPLS LSR ID' },
+  { v:'system', c:'mpls', to:'mpls', d:'进入 MPLS 视图' },
+  { v:'system', c:'quit', pop:true, d:'返回上一级视图' },
+  { v:'system', c:'return', reset:true, d:'直接回到用户视图' },
+
+  /* ---------------- 接口视图 ---------------- */
+  { v:'if', c:'ip address <ipv4:接口IP地址> <mask:子网掩码>', out:'ok', d:'配置接口 IP 地址',
+    info:{ brief:'给接口配 IPv4 地址。命令必须在接口视图下执行，所以是两层结构：先 interface 进视图，再 ip address 配地址。',
+           example:['ip address 192.168.1.254 255.255.255.0','ip add 192.168.1.254 24'],
+           pitfall:['掩码必须连续：255.255.255.0 ✔，255.0.255.0 ✘',
+                    '第二个地址要加 sub：ip address 10.1.1.1 24 sub',
+                    '配完地址接口 Protocol 才会 up'] } },
+  { v:'if', c:'ip address <ipv4:接口IP地址> <mask:子网掩码> sub', out:'ok', d:'配置从 IP 地址' },
+  { v:'if', c:'undo ip address', out:'ok', d:'删除接口 IP 地址' },
+  { v:'if', c:'shutdown', out:'ok', d:'关闭接口' },
+  { v:'if', c:'undo shutdown', out:'ok', d:'开启接口' },
+  { v:'if', c:'description <str:描述文本>', out:'ok', d:'接口描述' },
+  { v:'if', c:'mtu <num[46-9600]:MTU值>', out:'ok', d:'设置接口 MTU' },
+  { v:'if', c:'speed <enum{10,100,1000,auto}:速率>', out:'ok', d:'设置接口速率' },
+  { v:'if', c:'duplex <enum{full,half,auto}:双工模式>', out:'ok', d:'设置双工模式' },
+  { v:'if', c:'negotiation auto', out:'ok', d:'配置自协商' },
+  { v:'if', c:'port link-type <enum{access,trunk,hybrid}:链路类型>', out:'ok', d:'设置端口链路类型',
+    info:{ brief:'access 接终端只属于一个 VLAN；trunk 接交换机可透传多个 VLAN；hybrid 最灵活，可配置标签。',
+           pitfall:['改 link-type 会清掉该端口原有的 VLAN 配置',
+                    'trunk 口默认 PVID 是 VLAN 1'] } },
+  { v:'if', c:'port default vlan <vlanid:VLAN ID>', out:'ok', d:'设置 access 端口缺省 VLAN' },
+  { v:'if', c:'port trunk allow-pass vlan <vlanlist:VLAN列表>', out:'ok', d:'trunk 放行指定 VLAN', rep:true },
+  { v:'if', c:'port trunk allow-pass vlan all', out:'ok', d:'trunk 放行所有 VLAN' },
+  { v:'if', c:'port trunk pvid vlan <vlanid:VLAN ID>', out:'ok', d:'设置 trunk 口 PVID' },
+  { v:'if', c:'port hybrid pvid vlan <vlanid:VLAN ID>', out:'ok', d:'设置 hybrid 口 PVID' },
+  { v:'if', c:'port hybrid untagged vlan <vlanlist:VLAN列表>', out:'ok', d:'hybrid 去标签放行', rep:true },
+  { v:'if', c:'port hybrid tagged vlan <vlanlist:VLAN列表>', out:'ok', d:'hybrid 带标签放行', rep:true },
+  { v:'if', c:'port-isolate enable', out:'ok', d:'开启端口隔离' },
+  { v:'if', c:'eth-trunk <num[0-127]:Eth-Trunk编号>', out:'ok', d:'加入链路聚合组' },
+  { v:'if', c:'stp edged-port enable', out:'ok', d:'配置边缘端口' },
+  { v:'if', c:'stp cost <num[1-200000000]:路径开销>', out:'ok', d:'配置端口路径开销' },
+  { v:'if', c:'stp root-protection', out:'ok', d:'配置根保护' },
+  { v:'if', c:'stp loop-protection', out:'ok', d:'配置环路保护' },
+  { v:'if', c:'ospf cost <num[1-65535]:接口开销>', out:'ok', d:'配置 OSPF 接口开销' },
+  { v:'if', c:'ospf dr-priority <num[0-255]:DR优先级>', out:'ok', d:'配置 DR 优先级' },
+  { v:'if', c:'ospf network-type <enum{broadcast,nbma,p2p,p2mp}:网络类型>', out:'ok', d:'配置 OSPF 网络类型' },
+  { v:'if', c:'ospf timer hello <num[1-65535]:Hello间隔>', out:'ok', d:'配置 Hello 间隔' },
+  { v:'if', c:'ospf authentication-mode md5 <num[1-255]:密钥ID> cipher <str:密钥>', out:'ok', d:'配置 OSPF 接口认证' },
+  { v:'if', c:'isis enable <num[1-65535]:进程号>', out:'ok', d:'接口启用 IS-IS' },
+  { v:'if', c:'isis circuit-type <enum{p2p,broadcast}:电路类型>', out:'ok', d:'配置 IS-IS 电路类型' },
+  { v:'if', c:'isis cost <num[1-16777215]:接口开销>', out:'ok', d:'配置 IS-IS 接口开销' },
+  { v:'if', c:'pim sm', out:'ok', d:'接口启用 PIM-SM' },
+  { v:'if', c:'igmp version <num[1-3]:IGMP版本>', out:'ok', d:'配置 IGMP 版本' },
+  { v:'if', c:'mpls', out:'ok', d:'接口启用 MPLS' },
+  { v:'if', c:'mpls ldp', out:'ok', d:'接口启用 MPLS LDP' },
+  { v:'if', c:'dhcp select global', out:'ok', d:'接口使用全局地址池' },
+  { v:'if', c:'traffic-filter inbound acl <aclnum:ACL编号>', out:'ok', d:'入方向流量过滤' },
+  { v:'if', c:'nat outbound <aclnum:ACL编号>', out:'ok', d:'NAT 出方向地址转换',
+    info:{ brief:'把匹配 ACL 的内网流量做源地址转换（Easy IP）。',
+           example:['nat outbound 2000'],
+           pitfall:['ACL 里写的是内网网段，不是公网地址','出口接口必须配了公网 IP'] } },
+  { v:'if', c:'nat server protocol tcp global <ipv4:公网地址> <num[1-65535]:公网端口> inside <ipv4:私网地址> <num[1-65535]:私网端口>', out:'ok', d:'NAT 服务器映射' },
+  { v:'if', c:'vrrp vrid <num[1-255]:备份组号> virtual-ip <ipv4:虚拟IP地址>', out:'ok', d:'配置 VRRP 虚拟 IP',
+    info:{ brief:'两台设备用同一个虚拟 IP 做网关，主备切换由 VRRP 完成。',
+           pitfall:['虚拟 IP 必须与接口真实 IP 同网段','同一备份组的两台设备 vrid 必须一致'] } },
+  { v:'if', c:'vrrp vrid <num[1-255]:备份组号> priority <num[1-254]:优先级>', out:'ok', d:'配置 VRRP 优先级' },
+  { v:'if', c:'vrrp vrid <num[1-255]:备份组号> preempt-mode', out:'ok', d:'配置 VRRP 抢占' },
+  { v:'if', c:'vrrp vrid <num[1-255]:备份组号> track interface <ifname:被监视接口> reduced <num[1-255]:优先级降低值>', out:'ok', d:'VRRP 监视上行接口' },
+  { v:'if', c:'quit', pop:true, d:'返回系统视图' },
+  { v:'if', c:'return', reset:true, d:'直接回到用户视图' },
+
+  /* ---------------- Eth-Trunk 视图 ---------------- */
+  { v:'ethTrunk', c:'mode <enum{lacp-static,manual,normal}:工作模式>', out:'ok', d:'设置聚合模式',
+    info:{ brief:'LACP 模式会协商，链路故障感知快；手工模式不协商，两端必须都配。',
+           pitfall:['两端模式必须一致（LACP ↔ LACP，手工 ↔ 手工）'] } },
+  { v:'ethTrunk', c:'trunkport <ifname:成员接口>', out:'ok', d:'加入成员接口' },
+  { v:'ethTrunk', c:'lacp priority <num[0-65535]:系统优先级>', out:'ok', d:'设置 LACP 系统优先级' },
+  { v:'ethTrunk', c:'lacp max active-linknumber <num[1-16]:最大活动链路数>', out:'ok', d:'设置最大活动链路数' },
+  { v:'ethTrunk', c:'load-balance <enum{src-dst-ip,src-dst-mac,dst-ip,src-ip}:负载分担方式>', out:'ok', d:'设置负载分担方式' },
+  { v:'ethTrunk', c:'quit', pop:true, d:'返回系统视图' },
+
+  /* ---------------- VLAN 视图 ---------------- */
+  { v:'vlan', c:'description <str:描述文本>', out:'ok', d:'VLAN 描述' },
+  { v:'vlan', c:'port <ifname:接口名>', out:'ok', d:'把接口加入本 VLAN' },
+  { v:'vlan', c:'quit', pop:true, d:'返回系统视图' },
+
+  /* ---------------- OSPF 视图 ---------------- */
+  { v:'ospf', c:'router-id <ipv4:Router ID>', out:'ok', d:'配置 Router ID',
+    info:{ brief:'OSPF 的标识，格式是 IP 地址但可以随便写。',
+           pitfall:['不配则自动选最大的 Loopback 地址，再选最大的物理接口地址','改动后需 reset ospf process 才生效'] } },
+  { v:'ospf', c:'area <areaid:区域ID>', to:'ospfArea', d:'进入 OSPF 区域视图' },
+  { v:'ospf', c:'silent-interface <ifname:接口名>', out:'ok', d:'配置静默接口' },
+  { v:'ospf', c:'import-route <enum{direct,static,isis,bgp}:引入路由类型>', out:'ok', d:'引入外部路由' },
+  { v:'ospf', c:'default-route-advertise', out:'ok', d:'下发默认路由' },
+  { v:'ospf', c:'bandwidth-reference <num[1-10000]:带宽参考值>', out:'ok', d:'配置带宽参考值' },
+  { v:'ospf', c:'quit', pop:true, d:'返回系统视图' },
+  { v:'ospf', c:'return', reset:true, d:'直接回到用户视图' },
+
+  /* ---------------- OSPF 区域视图 ---------------- */
+  { v:'ospfArea', c:'network <ipv4:目的网段> <wildcard:反掩码>', out:'ok', d:'宣告网段',
+    info:{ brief:'把网段宣告进 OSPF。这里用反掩码（wildcard），不是子网掩码。',
+           example:['network 192.168.1.0 0.0.0.255','network 10.0.0.0 0.0.0.255'],
+           pitfall:['写成 network 192.168.1.0 255.255.255.0 是最常见的错误 —— 那是子网掩码',
+                    '0.0.0.255 等价于子网掩码 255.255.255.0',
+                    '反掩码必须与连续掩码互补，0.0.255.0 这种交叉位非法'] } },
+  { v:'ospfArea', c:'authentication-mode <enum{simple,md5,hmac-sha256}:认证模式>', out:'ok', d:'区域认证' },
+  { v:'ospfArea', c:'stub', out:'ok', d:'配置为 Stub 区域' },
+  { v:'ospfArea', c:'nssa', out:'ok', d:'配置为 NSSA 区域' },
+  { v:'ospfArea', c:'abr-summary <ipv4:汇总网段> <mask:子网掩码>', out:'ok', d:'区域间路由汇总' },
+  { v:'ospfArea', c:'vlink-peer <ipv4:虚连接邻居>', out:'ok', d:'配置虚连接' },
+  { v:'ospfArea', c:'quit', pop:true, d:'返回 OSPF 视图' },
+
+  /* ---------------- IS-IS 视图 ---------------- */
+  { v:'isis', c:'network-entity <str:NET地址>', out:'ok', d:'配置 NET 地址',
+    info:{ brief:'NET 由区域号 + System ID + SEL 组成，例如 49.0001.0000.0000.0001.00。',
+           pitfall:['同一区域内的区域号必须一致','System ID 必须唯一，通常用 Loopback 地址补齐'] } },
+  { v:'isis', c:'is-level <enum{level-1,level-2,level-1-2}:路由器级别>', out:'ok', d:'配置路由器级别' },
+  { v:'isis', c:'cost-style <enum{narrow,wide,compatible}:开销类型>', out:'ok', d:'配置开销类型' },
+  { v:'isis', c:'quit', pop:true, d:'返回系统视图' },
+  { v:'isis', c:'return', reset:true, d:'直接回到用户视图' },
+
+  /* ---------------- BGP 视图 ---------------- */
+  { v:'bgp', c:'router-id <ipv4:Router ID>', out:'ok', d:'配置 BGP Router ID' },
+  { v:'bgp', c:'peer <ipv4:邻居IP> as-number <asnum:对端AS号>', out:'ok', d:'指定对等体及 AS 号',
+    info:{ brief:'建立 BGP 邻居的第一步：指定对端地址和它所在的 AS。',
+           pitfall:['本端写的对端 AS 必须与对端真实 AS 一致，否则 Idle','iBGP 邻居两端 AS 号相同'] } },
+  { v:'bgp', c:'peer <ipv4:邻居IP> connect-interface <ifname:源接口>', out:'ok', d:'指定建立邻居的源接口' },
+  { v:'bgp', c:'peer <ipv4:邻居IP> next-hop-local', out:'ok', d:'下一跳指向本机' },
+  { v:'bgp', c:'peer <ipv4:邻居IP> ebgp-max-hop <num[1-255]:最大跳数>', out:'ok', d:'配置 EBGP 最大跳数' },
+  { v:'bgp', c:'peer <ipv4:邻居IP> password cipher <str:密码>', out:'ok', d:'配置 BGP 认证' },
+  { v:'bgp', c:'group <name:对等体组名> external', out:'ok', d:'创建 EBGP 对等体组' },
+  { v:'bgp', c:'preference <num[1-255]:优先级>', out:'ok', d:'修改 BGP 路由优先级' },
+  { v:'bgp', c:'ipv4-family unicast', to:'bgpAf', d:'进入 IPv4 单播地址族' },
+  { v:'bgp', c:'quit', pop:true, d:'返回系统视图' },
+  { v:'bgp', c:'return', reset:true, d:'直接回到用户视图' },
+
+  /* ---------------- BGP IPv4 地址族 ---------------- */
+  { v:'bgpAf', c:'network <ipv4:目的网段> <mask:子网掩码>', out:'ok', d:'宣告网段',
+    info:{ brief:'把路由表里已有的精确路由宣告进 BGP。',
+           pitfall:['掩码必须与路由表完全一致，/24 不能宣告成 /16','路由表里没有这条路由则宣告无效'] } },
+  { v:'bgpAf', c:'peer <ipv4:邻居IP> enable', out:'ok', d:'在地址族下激活邻居' },
+  { v:'bgpAf', c:'peer <ipv4:邻居IP> next-hop-local', out:'ok', d:'下一跳指向本机' },
+  { v:'bgpAf', c:'peer <ipv4:邻居IP> route-policy <name:路由策略名> export', out:'ok', d:'对邻居应用出方向策略' },
+  { v:'bgpAf', c:'aggregate <ipv4:聚合网段> <mask:子网掩码>', out:'ok', d:'路由聚合' },
+  { v:'bgpAf', c:'reflect-client', out:'ok', d:'配置路由反射器客户端' },
+  { v:'bgpAf', c:'quit', pop:true, d:'返回 BGP 视图' },
+
+  /* ---------------- ACL 视图 ---------------- */
+  { v:'acl', c:'rule <num[0-65534]:规则编号> <enum{permit,deny}:动作> source <ipv4:源网段地址> <wildcard:反掩码>', out:'ok', d:'匹配源地址',
+    info:{ brief:'ACL 用「网段 + 反掩码」描述范围：0 的位必须匹配，1 的位忽略。',
+           example:['rule 5 permit source 192.168.1.0 0.0.0.255','rule 10 deny source 10.0.0.0 0.0.0.255'],
+           pitfall:['source 后是反掩码 0.0.0.255，写成 255.255.255.0 会被拒绝',
+                    '只匹配单台主机可写 0.0.0.0，或 rule 5 permit source 192.168.1.1 0'] } },
+  { v:'acl', c:'rule <num[0-65534]:规则编号> <enum{permit,deny}:动作> destination <ipv4:目的网段地址> <wildcard:反掩码>', out:'ok', d:'匹配目的地址' },
+  { v:'acl', c:'rule <num[0-65534]:规则编号> <enum{permit,deny}:动作> source <ipv4:源网段地址> <wildcard:反掩码> destination <ipv4:目的网段地址> <wildcard:反掩码>', out:'ok', d:'同时匹配源和目的' },
+  { v:'acl', c:'rule <num[0-65534]:规则编号> <enum{permit,deny}:动作> protocol <enum{tcp,udp,icmp,ip}:协议> destination-port eq <num[0-65535]:端口号>', out:'ok', d:'匹配协议与端口' },
+  { v:'acl', c:'quit', pop:true, d:'返回系统视图' },
+
+  /* ---------------- DHCP 地址池视图 ---------------- */
+  { v:'pool', c:'network <ipv4:网段地址> mask <mask:子网掩码>', out:'ok', d:'指定可分配网段',
+    info:{ brief:'声明这个地址池能分配哪个网段。',
+           pitfall:['mask 是关键字，后面跟子网掩码，不是反掩码'] } },
+  { v:'pool', c:'gateway-list <ipv4:网关地址>', out:'ok', d:'指定下发的网关地址',
+    info:{ brief:'下发给客户端的默认网关，通常就是本机连接该网段的接口地址。',
+           pitfall:['网关必须与 network 声明的网段同网段','这里是「网关」不是「下一跳」，会被写进客户端默认路由'] } },
+  { v:'pool', c:'dns-list <ipv4:DNS服务器地址>', out:'ok', d:'指定下发的 DNS' },
+  { v:'pool', c:'lease day <num[1-999]:租期天数>', out:'ok', d:'配置地址租期' },
+  { v:'pool', c:'excluded-ip-address <ipv4:起始IP> <ipv4:结束IP>', out:'ok', d:'排除不分配的地址' },
+  { v:'pool', c:'static-bind ip-address <ipv4:绑定IP> mac-address <mac:MAC地址>', out:'ok', d:'静态绑定 IP 与 MAC' },
+  { v:'pool', c:'quit', pop:true, d:'返回系统视图' },
+
+  /* ---------------- AAA 视图 ---------------- */
+  { v:'aaa', c:'local-user <name:用户名> password cipher <str:密码>', out:'ok', d:'创建本地用户并设密码' },
+  { v:'aaa', c:'local-user <name:用户名> privilege level <num[0-15]:权限级别>', out:'ok', d:'设置用户权限级别' },
+  { v:'aaa', c:'local-user <name:用户名> service-type <enum{telnet,ssh,ftp,http}:服务类型>', out:'ok', d:'设置用户服务类型' },
+  { v:'aaa', c:'authentication-scheme <name:认证方案名>', out:'ok', d:'创建认证方案' },
+  { v:'aaa', c:'quit', pop:true, d:'返回系统视图' },
+
+  /* ---------------- VTY 视图 ---------------- */
+  { v:'ui', c:'authentication-mode <enum{password,aaa,none}:认证模式>', out:'ok', d:'设置登录认证方式' },
+  { v:'ui', c:'protocol inbound <enum{telnet,ssh,all}:接入协议>', out:'ok', d:'限制接入协议' },
+  { v:'ui', c:'user privilege level <num[0-15]:权限级别>', out:'ok', d:'设置用户级别' },
+  { v:'ui', c:'idle-timeout <num[0-35791]:超时分钟>', out:'ok', d:'设置空闲超时' },
+  { v:'ui', c:'quit', pop:true, d:'返回系统视图' },
+
+  /* ---------------- MPLS / PIM / Route-Policy ---------------- */
+  { v:'mpls', c:'lsp-trigger <enum{all,host,ip-prefix}:LSP触发策略>', out:'ok', d:'配置 LSP 触发策略' },
+  { v:'mpls', c:'quit', pop:true, d:'返回系统视图' },
+  { v:'pim', c:'static-rp <ipv4:静态RP地址>', out:'ok', d:'配置静态 RP' },
+  { v:'pim', c:'quit', pop:true, d:'返回系统视图' },
+  { v:'rp', c:'if-match acl <aclnum:ACL编号>', out:'ok', d:'匹配 ACL' },
+  { v:'rp', c:'if-match ip-prefix <name:前缀列表名>', out:'ok', d:'匹配前缀列表' },
+  { v:'rp', c:'apply cost <num[1-65535]:开销值>', out:'ok', d:'设置开销' },
+  { v:'rp', c:'apply preference <num[1-255]:优先级>', out:'ok', d:'设置优先级' },
+  { v:'rp', c:'apply ip-address next-hop <ipv4:下一跳IP>', out:'ok', d:'设置下一跳' },
+  { v:'rp', c:'quit', pop:true, d:'返回系统视图' }
+];
+
+/* 第二批：排错查询、undo 形态、安全与组播等常用命令 */
+var SPEC_MORE = [
+  /* 用户视图 · 查询与排错 */
+  { v:'user', c:'display interface brief', out:'ifbrief', d:'查看所有接口状态' },
+  { v:'user', c:'display ip interface', out:'ifdetail', d:'查看接口 IP 参数' },
+  { v:'user', c:'display mac-address vlan <vlanid:VLAN ID>', out:'mac', d:'按 VLAN 查看 MAC 表' },
+  { v:'user', c:'display stp', out:'stp', d:'查看生成树详细信息' },
+  { v:'user', c:'display stp region-configuration', out:'stp', d:'查看 MST 域配置' },
+  { v:'user', c:'display lldp neighbor', out:'lldp', d:'查看 LLDP 邻居详情' },
+  { v:'user', c:'display ntp-service status', out:'ntp', d:'查看 NTP 同步状态' },
+  { v:'user', c:'display snmp-agent sys-info', out:'snmp', d:'查看 SNMP 信息' },
+  { v:'user', c:'display ip pool name <name:地址池名称>', out:'ippool', d:'查看指定地址池' },
+  { v:'user', c:'display acl <aclnum:ACL编号>', out:'acl', d:'查看 ACL 规则' },
+  { v:'user', c:'display nat session all', out:'natsession', d:'查看 NAT 会话表' },
+  { v:'user', c:'display vrrp brief', out:'vrrp', d:'查看 VRRP 简要状态' },
+  { v:'user', c:'display ospf brief', out:'ospfpeer', d:'查看 OSPF 进程概要' },
+  { v:'user', c:'display ospf error', out:'ospferror', d:'查看 OSPF 错误统计' },
+  { v:'user', c:'display isis lsdb', out:'ospflsdb', d:'查看 IS-IS 链路状态库' },
+  { v:'user', c:'display bgp routing-table peer <ipv4:邻居IP> advertised-routes', out:'bgproute', d:'查看向邻居发布的路由' },
+  { v:'user', c:'display ip routing-table verbose', out:'route', d:'查看路由表详细信息' },
+  { v:'user', c:'display current-configuration configuration <enum{ospf,bgp,isis}:模块>', out:'config', d:'按模块查看配置' },
+  { v:'user', c:'display device', out:'device', d:'查看设备单板信息' },
+  { v:'user', c:'display temperature', out:'temp', d:'查看设备温度' },
+  { v:'user', c:'display startup', out:'startup', d:'查看启动配置' },
+  { v:'user', c:'terminal monitor', out:'ok', d:'开启终端告警显示' },
+  { v:'user', c:'undo terminal monitor', out:'ok', d:'关闭终端告警显示' },
+  { v:'user', c:'reset counters interface <ifname:接口名>', out:'ok', d:'清除接口计数' },
+
+  /* 系统视图 · 路由与基础服务 */
+  { v:'system', c:'ip route-static <ipv4:目的网段> <mask:子网掩码> <ifname:出接口>', out:'route', d:'静态路由只指出接口' },
+  { v:'system', c:'ip route-static <ipv4:目的网段> <mask:子网掩码> <ifname:出接口> <ipv4:下一跳IP>', out:'route', d:'静态路由出接口 + 下一跳' },
+  { v:'system', c:'arp static <ipv4:IP地址> <mac:MAC地址>', out:'ok', d:'配置静态 ARP' },
+  { v:'system', c:'dns resolve', out:'ok', d:'开启 DNS 解析' },
+  { v:'system', c:'dns server <ipv4:DNS服务器地址>', out:'ok', d:'指定 DNS 服务器' },
+  { v:'system', c:'ftp server enable', out:'ok', d:'开启 FTP 服务' },
+  { v:'system', c:'sftp server enable', out:'ok', d:'开启 SFTP 服务' },
+  { v:'system', c:'ssh authentication-type default password', out:'ok', d:'SSH 默认认证方式' },
+  { v:'system', c:'user-interface maximum-vty <num[1-15]:最大VTY数>', out:'ok', d:'设置最大 VTY 数' },
+  { v:'system', c:'ntp-service enable', out:'ok', d:'开启 NTP' },
+  { v:'system', c:'ntp-service unicast-peer <ipv4:对端地址>', out:'ok', d:'指定 NTP 对等体' },
+  { v:'system', c:'snmp-agent sys-info version <enum{v1,v2c,v3}:SNMP版本>', out:'ok', d:'设置 SNMP 版本' },
+  { v:'system', c:'snmp-agent community read cipher <str:团体名>', out:'ok', d:'配置 SNMP 读团体名' },
+  { v:'system', c:'info-center loghost <ipv4:日志服务器地址>', out:'ok', d:'指定日志服务器' },
+  { v:'system', c:'header shell information <str:标语>', out:'ok', d:'配置登录后提示' },
+  { v:'system', c:'stp region-configuration', to:'stpRegion', d:'进入 MST 域视图' },
+  { v:'system', c:'stp instance <num[0-4094]:实例ID> priority <num[0-61440]:优先级>', out:'ok', d:'设置实例桥优先级' },
+  { v:'system', c:'radius-server template <name:模板名>', out:'ok', d:'创建 RADIUS 模板' },
+  { v:'system', c:'domain <name:域名>', out:'ok', d:'创建域' },
+  { v:'system', c:'undo ip route-static <ipv4:目的网段> <mask:子网掩码> <ipv4:下一跳IP>', out:'ok', d:'删除静态路由' },
+
+  /* 接口视图 · 安全与组播 */
+  { v:'if', c:'traffic-filter outbound acl <aclnum:ACL编号>', out:'ok', d:'出方向流量过滤' },
+  { v:'if', c:'port-security enable', out:'ok', d:'开启端口安全' },
+  { v:'if', c:'port-security max-mac-num <num[1-4096]:最大MAC数>', out:'ok', d:'限制学习 MAC 数量' },
+  { v:'if', c:'port-security protect-action <enum{protect,restrict,shutdown}:保护动作>', out:'ok', d:'端口安全违规动作' },
+  { v:'if', c:'storm-control broadcast min-rate <num[1-100000]:pps>', out:'ok', d:'广播风暴抑制' },
+  { v:'if', c:'dhcp select relay', out:'ok', d:'接口使用 DHCP 中继' },
+  { v:'if', c:'dhcp relay server-ip <ipv4:DHCP服务器地址>', out:'ok', d:'指定 DHCP 服务器' },
+  { v:'if', c:'dhcp snooping enable', out:'ok', d:'开启 DHCP Snooping' },
+  { v:'if', c:'dhcp snooping trusted', out:'ok', d:'设置信任接口' },
+  { v:'if', c:'stp port priority <num[0-240]:端口优先级>', out:'ok', d:'设置端口优先级' },
+  { v:'if', c:'stp edged-port disable', out:'ok', d:'取消边缘端口' },
+  { v:'if', c:'undo port default vlan', out:'ok', d:'恢复缺省 VLAN' },
+  { v:'if', c:'undo port trunk allow-pass vlan <vlanlist:VLAN列表>', out:'ok', d:'取消 trunk 放行', rep:true },
+  { v:'if', c:'undo vrrp vrid <num[1-255]:备份组号>', out:'ok', d:'删除 VRRP 备份组' },
+
+  /* OSPF */
+  { v:'ospf', c:'default-route-advertise always', out:'ok', d:'强制下发默认路由' },
+  { v:'ospf', c:'import-route <enum{direct,static,isis,bgp}:引入路由类型> cost <num[0-16777214]:开销>', out:'ok', d:'引入路由并指定开销' },
+  { v:'ospf', c:'silent-interface all', out:'ok', d:'全部接口静默' },
+  { v:'ospf', c:'undo silent-interface <ifname:接口名>', out:'ok', d:'取消接口静默' },
+  { v:'ospf', c:'undo area <areaid:区域ID>', out:'ok', d:'删除区域' },
+
+  /* OSPF 区域 */
+  { v:'ospfArea', c:'default-cost <num[0-16777214]:默认开销>', out:'ok', d:'设置 Stub 默认开销' },
+  { v:'ospfArea', c:'stub no-summary', out:'ok', d:'完全 Stub 区域' },
+  { v:'ospfArea', c:'nssa default-route-advertise', out:'ok', d:'NSSA 下发默认路由' },
+  { v:'ospfArea', c:'filter <ipv4:过滤网段> <wildcard:反掩码>', out:'ok', d:'区域间路由过滤' },
+  { v:'ospfArea', c:'undo network <ipv4:目的网段> <wildcard:反掩码>', out:'ok', d:'取消网段宣告' },
+
+  /* IS-IS */
+  { v:'isis', c:'is-name <name:动态主机名>', out:'ok', d:'配置动态主机名' },
+  { v:'isis', c:'timer hello <num[1-65535]:Hello间隔>', out:'ok', d:'配置 Hello 间隔' },
+  { v:'isis', c:'authentication-mode md5 <str:密码>', out:'ok', d:'配置区域认证' },
+  { v:'isis', c:'import-route <enum{direct,static,ospf,bgp}:引入路由>', out:'ok', d:'引入外部路由' },
+  { v:'isis', c:'summary <ipv4:汇总网段> <mask:子网掩码>', out:'ok', d:'路由聚合' },
+
+  /* BGP */
+  { v:'bgp', c:'peer <ipv4:邻居IP> route-policy <name:路由策略名> import', out:'ok', d:'对邻居应用入方向策略' },
+  { v:'bgp', c:'peer <ipv4:邻居IP> filter-policy <aclnum:ACL编号> export', out:'ok', d:'按 ACL 过滤发布路由' },
+  { v:'bgp', c:'peer <ipv4:邻居IP> description <str:描述>', out:'ok', d:'邻居描述' },
+  { v:'bgp', c:'peer <ipv4:邻居IP> timer keepalive <num[0-21845]:保活秒> hold <num[0-65535]:保持秒>', out:'ok', d:'配置 BGP 定时器' },
+  { v:'bgp', c:'peer <ipv4:邻居IP> valid-ttl-hops <num[1-255]:跳数>', out:'ok', d:'配置 TTL 安全' },
+  { v:'bgp', c:'dampening', out:'ok', d:'开启路由振荡抑制' },
+  { v:'bgp', c:'undo peer <ipv4:邻居IP>', out:'ok', d:'删除 BGP 邻居' },
+
+  /* BGP 地址族 */
+  { v:'bgpAf', c:'peer <ipv4:邻居IP> route-policy <name:路由策略名> import', out:'ok', d:'地址族入方向策略' },
+  { v:'bgpAf', c:'peer <ipv4:邻居IP> filter-policy <aclnum:ACL编号> export', out:'ok', d:'地址族发布过滤' },
+  { v:'bgpAf', c:'peer <ipv4:邻居IP> allow-as-loop <num[1-10]:允许次数>', out:'ok', d:'允许 AS 号重复' },
+  { v:'bgpAf', c:'peer <ipv4:邻居IP> substitute-as', out:'ok', d:'AS 号替换' },
+
+  /* ACL */
+  { v:'acl', c:'rule <num[0-65534]:规则编号> <enum{permit,deny}:动作> protocol <enum{tcp,udp,icmp,ip}:协议> source <ipv4:源网段地址> <wildcard:反掩码> destination <ipv4:目的网段地址> <wildcard:反掩码>', out:'ok', d:'五元组匹配' },
+  { v:'acl', c:'step <num[1-20]:步长>', out:'ok', d:'设置规则步长' },
+  { v:'acl', c:'description <str:描述>', out:'ok', d:'ACL 描述' },
+  { v:'acl', c:'undo rule <num[0-65534]:规则编号>', out:'ok', d:'删除规则' },
+
+  /* 地址池 */
+  { v:'pool', c:'netbios-name-server <ipv4:NetBIOS服务器>', out:'ok', d:'下发 NetBIOS 服务器' },
+  { v:'pool', c:'domain-name <str:域名>', out:'ok', d:'下发域名' },
+  { v:'pool', c:'option <num[1-254]:选项码> <str:选项值>', out:'ok', d:'自定义 DHCP 选项' },
+
+  /* AAA / VTY */
+  { v:'aaa', c:'local-user <name:用户名> idle-timeout <num[0-35791]:分钟>', out:'ok', d:'设置用户空闲超时' },
+  { v:'aaa', c:'authorization-scheme <name:授权方案名>', out:'ok', d:'创建授权方案' },
+  { v:'aaa', c:'accounting-scheme <name:计费方案名>', out:'ok', d:'创建计费方案' },
+  { v:'aaa', c:'undo local-user <name:用户名>', out:'ok', d:'删除本地用户' },
+  { v:'ui', c:'history-command max-size <num[0-256]:条数>', out:'ok', d:'设置历史命令条数' },
+  { v:'ui', c:'screen-length <num[0-512]:行数>', out:'ok', d:'设置每屏行数' },
+  { v:'ui', c:'undo idle-timeout', out:'ok', d:'恢复默认超时' },
+
+  /* Route-Policy */
+  { v:'rp', c:'if-match cost <num[1-16777215]:开销>', out:'ok', d:'匹配路由开销' },
+  { v:'rp', c:'if-match tag <num[1-4294967295]:Tag值>', out:'ok', d:'匹配路由 Tag' },
+  { v:'rp', c:'apply tag <num[1-4294967295]:Tag值>', out:'ok', d:'设置路由 Tag' },
+  { v:'rp', c:'apply local-preference <num[0-4294967295]:本地优先级>', out:'ok', d:'设置本地优先级' },
+
+  /* MST 域 */
+  { v:'stpRegion', c:'region-name <name:域名>', out:'ok', d:'设置 MST 域名' },
+  { v:'stpRegion', c:'instance <num[0-4094]:实例ID> vlan <vlanlist:VLAN列表>', out:'ok', d:'实例映射 VLAN', rep:true },
+  { v:'stpRegion', c:'revision-level <num[0-65535]:修订级别>', out:'ok', d:'设置修订级别' },
+  { v:'stpRegion', c:'active region-configuration', out:'ok', d:'激活域配置' },
+  { v:'stpRegion', c:'quit', pop:true, d:'返回系统视图' },
+
+  /* MPLS / PIM */
+  { v:'mpls', c:'static-lsp ingress <name:LSP名> destination <ipv4:目的网段> <num[0-32]:掩码长度> nexthop <ipv4:下一跳IP> out-label <num[0-1048575]:出标签>', out:'ok', d:'配置静态 LSP' },
+  { v:'pim', c:'c-bsr <ifname:接口名>', out:'ok', d:'配置候选 BSR' },
+  { v:'pim', c:'c-rp <ifname:接口名>', out:'ok', d:'配置候选 RP' }
+];
+/* 第三批：undo 形态、排错查询、二层安全、路由策略细节 */
+var SPEC_MORE2 = [
+  /* 用户视图 · 查询与排错 */
+  { v:'user', c:'display this', out:'config', d:'查看当前视图下的配置' },
+  { v:'user', c:'display current-configuration interface <ifname:接口名>', out:'config', d:'查看指定接口配置' },
+  { v:'user', c:'display ip routing-table statistics', out:'route', d:'查看路由统计' },
+  { v:'user', c:'display ip routing-table acl <aclnum:ACL编号>', out:'route', d:'查看匹配 ACL 的路由' },
+  { v:'user', c:'display fib', out:'route', d:'查看 FIB 表' },
+  { v:'user', c:'display arp statistics all', out:'arp', d:'查看 ARP 统计' },
+  { v:'user', c:'display mac-address aging-time', out:'mac', d:'查看 MAC 老化时间' },
+  { v:'user', c:'display mac-address blackhole', out:'mac', d:'查看黑洞 MAC' },
+  { v:'user', c:'display port-isolate group all', out:'portvlan', d:'查看端口隔离组' },
+  { v:'user', c:'display storm-control interface all', out:'ifbrief', d:'查看风暴抑制' },
+  { v:'user', c:'display dhcp snooping user-bind all', out:'arp', d:'查看 DHCP Snooping 绑定表' },
+  { v:'user', c:'display transceiver interface <ifname:接口名>', out:'transceiver', d:'查看光模块信息' },
+  { v:'user', c:'display interface <ifname:接口名> counters', out:'ifdetail', d:'查看接口收发计数' },
+  { v:'user', c:'display ospf vlink', out:'ospfpeer', d:'查看虚连接状态' },
+  { v:'user', c:'display bgp network', out:'bgproute', d:'查看 BGP 宣告的网段' },
+  { v:'user', c:'display bgp peer verbose', out:'bgppeer', d:'查看 BGP 邻居详情' },
+  { v:'user', c:'display isis interface', out:'isispeer', d:'查看 IS-IS 接口' },
+  { v:'user', c:'display mpls lsp', out:'mplslsp', d:'查看 LSP 表' },
+  { v:'user', c:'display mpls ldp session', out:'mplslsp', d:'查看 LDP 会话' },
+  { v:'user', c:'display pim neighbor', out:'pim', d:'查看 PIM 邻居' },
+  { v:'user', c:'display igmp group', out:'pim', d:'查看 IGMP 组' },
+  { v:'user', c:'display cpu-usage history', out:'cpu', d:'查看 CPU 历史占用' },
+  { v:'user', c:'display alarm active', out:'alarm', d:'查看活动告警' },
+  { v:'user', c:'display power', out:'device', d:'查看电源状态' },
+  { v:'user', c:'display fan', out:'device', d:'查看风扇状态' },
+  { v:'user', c:'display elabel', out:'device', d:'查看电子标签' },
+  { v:'user', c:'display boot-loader', out:'startup', d:'查看启动文件' },
+  { v:'user', c:'debugging ip packet', out:'ok', d:'打开 IP 报文调试' },
+  { v:'user', c:'debugging ospf packet', out:'ok', d:'打开 OSPF 报文调试' },
+  { v:'user', c:'undo debugging all', out:'ok', d:'关闭所有调试' },
+  { v:'user', c:'terminal debugging', out:'ok', d:'终端显示调试信息' },
+  { v:'user', c:'reset arp all', out:'ok', d:'清除 ARP 表' },
+  { v:'user', c:'reset ospf process', out:'ok', d:'重启 OSPF 进程' },
+  { v:'user', c:'reset bgp all', out:'ok', d:'重置所有 BGP 连接' },
+
+  /* 系统视图 · undo 与细节 */
+  { v:'system', c:'undo sysname', out:'ok', d:'恢复默认设备名' },
+  { v:'system', c:'undo vlan <vlanid:VLAN ID>', out:'ok', d:'删除 VLAN' },
+  { v:'system', c:'undo acl <aclnum:ACL编号>', out:'ok', d:'删除 ACL' },
+  { v:'system', c:'undo ospf <num[1-65535]:进程号>', out:'ok', d:'删除 OSPF 进程' },
+  { v:'system', c:'undo bgp <asnum:AS号>', out:'ok', d:'删除 BGP 进程' },
+  { v:'system', c:'undo isis <num[1-65535]:进程号>', out:'ok', d:'删除 IS-IS 进程' },
+  { v:'system', c:'undo ip pool <name:地址池名称>', out:'ok', d:'删除地址池' },
+  { v:'system', c:'undo user-interface vty 0 4', out:'ok', d:'恢复 VTY 默认配置' },
+  { v:'system', c:'undo dhcp enable', out:'ok', d:'关闭 DHCP' },
+  { v:'system', c:'undo header login information', out:'ok', d:'删除登录提示' },
+  { v:'system', c:'undo info-center enable', out:'ok', d:'关闭信息中心' },
+  { v:'system', c:'undo snmp-agent', out:'ok', d:'关闭 SNMP' },
+  { v:'system', c:'undo ntp-service enable', out:'ok', d:'关闭 NTP' },
+  { v:'system', c:'undo dns resolve', out:'ok', d:'关闭 DNS 解析' },
+  { v:'system', c:'undo ftp server enable', out:'ok', d:'关闭 FTP 服务' },
+  { v:'system', c:'undo telnet server enable', out:'ok', d:'关闭 Telnet 服务' },
+  { v:'system', c:'ip route-static <ipv4:目的网段> <mask:子网掩码> <ipv4:下一跳IP> tag <num[1-4294967295]:Tag值>', out:'route', d:'静态路由打 Tag' },
+  { v:'system', c:'ip route-static <ipv4:目的网段> <mask:子网掩码> <ipv4:下一跳IP> description <str:描述>', out:'route', d:'静态路由加描述' },
+  { v:'system', c:'ip route-static default-preference <num[1-255]:默认优先级>', out:'ok', d:'静态路由默认优先级' },
+  { v:'system', c:'acl name <name:ACL名称> <enum{basic,advanced}:ACL类型>', out:'ok', d:'创建命名 ACL' },
+  { v:'system', c:'time-range <name:时间段名> <str:时间段>', out:'ok', d:'定义时间段' },
+  { v:'system', c:'mac-address aging-time <num[1-1000000]:老化秒数>', out:'ok', d:'设置 MAC 老化时间' },
+  { v:'system', c:'mac-address blackhole <mac:MAC地址> vlan <vlanid:VLAN ID>', out:'ok', d:'配置黑洞 MAC' },
+  { v:'system', c:'stp timer hello <num[100-1000]:Hello时间>', out:'ok', d:'设置 Hello 时间' },
+  { v:'system', c:'stp timer forward-delay <num[400-3000]:转发延迟>', out:'ok', d:'设置转发延迟' },
+  { v:'system', c:'stp timer max-age <num[600-4000]:最大老化>', out:'ok', d:'设置最大老化时间' },
+  { v:'system', c:'stp instance <num[0-4094]:实例ID> root primary', out:'ok', d:'指定实例根桥' },
+  { v:'system', c:'ntp-service refclock-master <num[1-15]:层级>', out:'ok', d:'配置本地时钟为主时钟' },
+  { v:'system', c:'snmp-agent trap enable', out:'ok', d:'开启 SNMP 告警' },
+  { v:'system', c:'ftp timeout <num[1-35791]:分钟>', out:'ok', d:'设置 FTP 超时' },
+  { v:'system', c:'telnet server port <num[1-65535]:端口号>', out:'ok', d:'修改 Telnet 端口' },
+  { v:'system', c:'ssh server port <num[1-65535]:端口号>', out:'ok', d:'修改 SSH 端口' },
+  { v:'system', c:'undo mac-address blackhole <mac:MAC地址> vlan <vlanid:VLAN ID>', out:'ok', d:'删除黑洞 MAC' },
+
+  /* 接口视图 · 细节与 undo */
+  { v:'if', c:'flow-control', out:'ok', d:'开启流控' },
+  { v:'if', c:'undo negotiation auto', out:'ok', d:'关闭自协商' },
+  { v:'if', c:'mac-address static <mac:MAC地址> vlan <vlanid:VLAN ID>', out:'ok', d:'配置静态 MAC' },
+  { v:'if', c:'storm-control multicast min-rate <num[1-100000]:pps>', out:'ok', d:'组播风暴抑制' },
+  { v:'if', c:'storm-control unicast min-rate <num[1-100000]:pps>', out:'ok', d:'未知单播风暴抑制' },
+  { v:'if', c:'loopback-detect enable', out:'ok', d:'开启环回检测' },
+  { v:'if', c:'ospf authentication-mode simple cipher <str:密码>', out:'ok', d:'OSPF 明文认证' },
+  { v:'if', c:'ospf mtu-enable', out:'ok', d:'DD 报文携带 MTU' },
+  { v:'if', c:'ospf trans-delay <num[1-5000]:传输延迟>', out:'ok', d:'配置传输延迟' },
+  { v:'if', c:'ospf timer dead <num[1-65535]:Dead间隔>', out:'ok', d:'配置 Dead 定时器' },
+  { v:'if', c:'isis authentication-mode md5 <str:密码>', out:'ok', d:'IS-IS 接口认证' },
+  { v:'if', c:'isis timer hello <num[1-65535]:Hello间隔>', out:'ok', d:'IS-IS Hello 间隔' },
+  { v:'if', c:'pim dr-priority <num[0-4294967294]:DR优先级>', out:'ok', d:'PIM DR 优先级' },
+  { v:'if', c:'igmp static-group <ipv4:组播组地址>', out:'ok', d:'静态加入组播组' },
+  { v:'if', c:'vrrp vrid <num[1-255]:备份组号> authentication-mode md5 <str:密码>', out:'ok', d:'VRRP 认证' },
+  { v:'if', c:'vrrp vrid <num[1-255]:备份组号> timer advertise <num[1-255]:通告间隔>', out:'ok', d:'VRRP 通告间隔' },
+  { v:'if', c:'nat static global <ipv4:公网地址> inside <ipv4:私网地址>', out:'ok', d:'一对一静态 NAT' },
+  { v:'if', c:'undo description', out:'ok', d:'删除接口描述' },
+  { v:'if', c:'undo mtu', out:'ok', d:'恢复默认 MTU' },
+  { v:'if', c:'undo speed', out:'ok', d:'恢复默认速率' },
+  { v:'if', c:'undo port-isolate enable', out:'ok', d:'关闭端口隔离' },
+  { v:'if', c:'undo port-security enable', out:'ok', d:'关闭端口安全' },
+  { v:'if', c:'undo stp cost', out:'ok', d:'恢复默认路径开销' },
+  { v:'if', c:'undo ospf cost', out:'ok', d:'恢复默认 OSPF 开销' },
+  { v:'if', c:'undo dhcp snooping enable', out:'ok', d:'关闭 DHCP Snooping' },
+  { v:'if', c:'undo traffic-filter inbound', out:'ok', d:'取消入方向过滤' },
+
+  /* 路由协议细节 */
+  { v:'ospf', c:'asbr-summary <ipv4:汇总网段> <mask:子网掩码>', out:'ok', d:'ASBR 路由聚合' },
+  { v:'ospf', c:'filter-policy <aclnum:ACL编号> export', out:'ok', d:'过滤发布的路由' },
+  { v:'ospf', c:'preference <num[1-255]:优先级>', out:'ok', d:'修改 OSPF 路由优先级' },
+  { v:'ospf', c:'undo import-route <enum{direct,static,isis,bgp}:引入路由类型>', out:'ok', d:'取消引入路由' },
+  { v:'isis', c:'filter-policy <aclnum:ACL编号> import', out:'ok', d:'过滤接收的路由' },
+  { v:'isis', c:'set-overload', out:'ok', d:'设置过载位' },
+  { v:'bgp', c:'peer <ipv4:邻居IP> group <name:对等体组名>', out:'ok', d:'加入对等体组' },
+  { v:'bgp', c:'peer <ipv4:邻居IP> public-as-only', out:'ok', d:'只发送公有 AS 号' },
+  { v:'bgp', c:'peer <ipv4:邻居IP> route-limit <num[1-4294967295]:最大条数>', out:'ok', d:'限制接收路由数' },
+  { v:'bgp', c:'peer <ipv4:邻居IP> bfd', out:'ok', d:'BGP 启用 BFD' },
+  { v:'bgp', c:'peer <ipv4:邻居IP> keep-all-routes', out:'ok', d:'保留所有路由' },
+  { v:'bgpAf', c:'peer <ipv4:邻居IP> group <name:对等体组名>', out:'ok', d:'地址族加入对等体组' },
+  { v:'bgpAf', c:'peer <ipv4:邻居IP> public-as-only', out:'ok', d:'只发送公有 AS 号' },
+  { v:'bgpAf', c:'peer <ipv4:邻居IP> route-limit <num[1-4294967295]:最大条数>', out:'ok', d:'限制路由条数' },
+
+  /* ACL / 地址池 / 其他 */
+  { v:'acl', c:'rule <num[0-65534]:规则编号> <enum{permit,deny}:动作> protocol <enum{tcp,udp,icmp,ip}:协议> source <ipv4:源网段地址> <wildcard:反掩码> destination-port eq <num[0-65535]:端口号>', out:'ok', d:'按源网段 + 端口匹配' },
+  { v:'pool', c:'bootfile-name <str:启动文件名>', out:'ok', d:'下发启动文件名' },
+  { v:'pool', c:'next-server <ipv4:服务器地址>', out:'ok', d:'下发 TFTP 服务器' },
+  { v:'aaa', c:'local-user <name:用户名> ftp-directory <str:目录>', out:'ok', d:'设置 FTP 目录' },
+  { v:'ui', c:'acl <aclnum:ACL编号> inbound', out:'ok', d:'限制登录源地址' },
+  { v:'vlan', c:'undo port <ifname:接口名>', out:'ok', d:'把接口移出本 VLAN' },
+  { v:'ethTrunk', c:'least active-linknumber <num[1-16]:最少活动链路数>', out:'ok', d:'最少活动链路数' },
+  { v:'ethTrunk', c:'lacp timeout <enum{fast,slow}:超时模式>', out:'ok', d:'LACP 超时模式' },
+  { v:'ethTrunk', c:'undo trunkport <ifname:成员接口>', out:'ok', d:'移出成员接口' },
+  { v:'mpls', c:'static-lsp egress <name:LSP名> incoming-interface <ifname:入接口> in-label <num[0-1048575]:入标签>', out:'ok', d:'配置静态 LSP 出节点' },
+  { v:'pim', c:'static-rp <ipv4:静态RP地址> priority <num[0-255]:优先级>', out:'ok', d:'静态 RP 优先级' }
+];
+/* 第四批：IPv6 / QoS / RIP / 策略路由 / 二层增强 / 文件系统 */
+var SPEC_MORE3 = [
+  /* IPv6 基础 */
+  { v:'system', c:'ipv6', out:'ok', d:'全局使能 IPv6 报文转发' },
+  { v:'system', c:'ipv6 route-static <ipv6addr:目的网段> <num[0-128]:前缀长度> <ipv6addr:下一跳IPv6>', out:'route', d:'IPv6 静态路由' },
+  { v:'system', c:'ospfv3 <num[1-65535]:进程号>', to:'ospfv3', d:'启动 OSPFv3 进程' },
+  { v:'ospfv3', c:'router-id <ipv4:Router ID>', out:'ok', d:'配置 OSPFv3 Router ID' },
+  { v:'ospfv3', c:'quit', pop:true, d:'返回系统视图' },
+  { v:'if', c:'ipv6 enable', out:'ok', d:'接口开启 IPv6' },
+  { v:'if', c:'ipv6 address <ipv6addr:接口IPv6地址> <num[0-128]:前缀长度>', out:'ok', d:'配置接口 IPv6 地址' },
+  { v:'if', c:'ipv6 address auto link-local', out:'ok', d:'自动生成链路本地地址' },
+  { v:'if', c:'ipv6 address <ipv6addr:接口IPv6地址> <num[0-128]:前缀长度> eui-64', out:'ok', d:'按 EUI-64 生成接口标识' },
+  { v:'if', c:'ospfv3 <num[1-65535]:进程号> area <areaid:区域ID>', out:'ok', d:'接口启用 OSPFv3 并指定区域' },
+  { v:'if', c:'ipv6 nd ra halt', out:'ok', d:'抑制 RA 报文' },
+  { v:'if', c:'undo ipv6 enable', out:'ok', d:'接口关闭 IPv6' },
+  { v:'user', c:'display ipv6 interface brief', out:'ifbrief', d:'查看接口 IPv6 状态' },
+  { v:'user', c:'display ipv6 routing-table', out:'route', d:'查看 IPv6 路由表' },
+  { v:'user', c:'display ospfv3 peer', out:'ospfpeer', d:'查看 OSPFv3 邻居' },
+
+  /* BGP IPv6 地址族 */
+  { v:'bgp', c:'peer <ipv6addr:邻居IPv6> as-number <asnum:对端AS号>', out:'ok', d:'指定 IPv6 邻居及 AS 号' },
+  { v:'bgp', c:'ipv6-family unicast', to:'bgp6', d:'进入 IPv6 单播地址族' },
+  { v:'bgp6', c:'network <ipv6addr:目的网段> <num[0-128]:前缀长度>', out:'ok', d:'宣告 IPv6 网段' },
+  { v:'bgp6', c:'peer <ipv6addr:邻居IPv6> enable', out:'ok', d:'在 IPv6 地址族激活邻居' },
+  { v:'bgp6', c:'peer <ipv6addr:邻居IPv6> next-hop-local', out:'ok', d:'下一跳指向本机' },
+  { v:'bgp6', c:'quit', pop:true, d:'返回 BGP 视图' },
+
+  /* RIP */
+  { v:'system', c:'rip <num[1-65535]:进程号>', to:'rip', d:'启动 RIP 进程' },
+  { v:'rip', c:'version <enum{1,2}:版本>', out:'ok', d:'配置 RIP 版本' },
+  { v:'rip', c:'network <ipv4:网段地址>', out:'ok', d:'宣告网段',
+    info:{ brief:'RIP 的 network 只写主网段地址，不带掩码，也不带反掩码。',
+           pitfall:['写成 network 192.168.1.0 0.0.0.255 会报错——RIP 不接受反掩码',
+                    'RIP 是有类路由协议，v1 不携带掩码'] } },
+  { v:'rip', c:'import-route <enum{direct,static,ospf,isis,bgp}:引入路由>', out:'ok', d:'引入外部路由' },
+  { v:'rip', c:'silent-interface <ifname:接口名>', out:'ok', d:'配置抑制接口' },
+  { v:'rip', c:'quit', pop:true, d:'返回系统视图' },
+  { v:'user', c:'display rip <num[1-65535]:进程号> route', out:'riprout', d:'查看 RIP 路由' },
+
+  /* 策略路由 PBR */
+  { v:'system', c:'policy-based-route <name:策略名> permit node <num[0-65535]:节点号>', to:'pbr', d:'创建策略路由节点' },
+  { v:'pbr', c:'if-match acl <aclnum:ACL编号>', out:'ok', d:'匹配 ACL' },
+  { v:'pbr', c:'apply ip-address next-hop <ipv4:下一跳IP>', out:'ok', d:'指定下一跳' },
+  { v:'pbr', c:'quit', pop:true, d:'返回系统视图' },
+  { v:'if', c:'ip policy-based-route <name:策略名>', out:'ok', d:'接口应用策略路由' },
+
+  /* QoS */
+  { v:'system', c:'traffic classifier <name:流分类名>', to:'qosCls', d:'创建流分类（默认 and）' },
+  { v:'system', c:'traffic classifier <name:流分类名> operator <enum{or,and}:匹配关系>', to:'qosCls', d:'创建流分类并指定匹配关系' },
+  { v:'qosCls', c:'if-match acl <aclnum:ACL编号>', out:'ok', d:'按 ACL 分类' },
+  { v:'qosCls', c:'if-match vlan-id <vlanid:VLAN ID>', out:'ok', d:'按 VLAN 分类' },
+  { v:'qosCls', c:'quit', pop:true, d:'返回系统视图' },
+  { v:'system', c:'traffic behavior <name:流行为名>', to:'qosBeh', d:'创建流行为' },
+  { v:'qosBeh', c:'remark dscp <num[0-63]:DSCP值>', out:'ok', d:'重标记 DSCP' },
+  { v:'qosBeh', c:'car cir <num[64-100000000]:承诺速率kbps>', out:'ok', d:'配置流量监管' },
+  { v:'qosBeh', c:'quit', pop:true, d:'返回系统视图' },
+  { v:'system', c:'traffic policy <name:流策略名>', to:'qosPol', d:'创建流策略' },
+  { v:'qosPol', c:'classifier <name:流分类名> behavior <name:流行为名>', out:'ok', d:'绑定流分类与流行为' },
+  { v:'qosPol', c:'quit', pop:true, d:'返回系统视图' },
+  { v:'if', c:'traffic-policy <name:流策略名> inbound', out:'ok', d:'接口入方向应用流策略' },
+  { v:'if', c:'traffic-policy <name:流策略名> outbound', out:'ok', d:'接口出方向应用流策略' },
+  { v:'user', c:'display traffic policy user-defined', out:'qos', d:'查看用户自定义流策略' },
+
+  /* BFD */
+  { v:'system', c:'bfd', out:'ok', d:'全局使能 BFD' },
+  { v:'if', c:'bfd min-tx-interval <num[3-1000]:最小发送间隔ms>', out:'ok', d:'BFD 最小发送间隔' },
+  { v:'if', c:'bfd min-rx-interval <num[3-1000]:最小接收间隔ms>', out:'ok', d:'BFD 最小接收间隔' },
+  { v:'if', c:'bfd detect-multiplier <num[3-50]:检测倍数>', out:'ok', d:'BFD 检测倍数' },
+
+  /* 二层增强：Super VLAN / MUX VLAN / MAC VLAN / Voice VLAN */
+  { v:'vlan', c:'aggregate-vlan <vlanid:Super VLAN>', out:'ok', d:'指定 Super VLAN' },
+  { v:'vlan', c:'access-vlan <vlanlist:Sub VLAN列表>', out:'ok', d:'绑定 Sub VLAN', rep:true },
+  { v:'vlan', c:'mux-vlan', out:'ok', d:'配置为 MUX VLAN' },
+  { v:'vlan', c:'subordinate group <enum{principal,separate,common}:组类型>', out:'ok', d:'配置 MUX 从 VLAN 组' },
+  { v:'vlan', c:'mac-vlan mac-address <mac:MAC地址>', out:'ok', d:'绑定 MAC 与 VLAN' },
+  { v:'vlan', c:'voice-vlan <vlanid:VLAN ID> enable', out:'ok', d:'指定语音 VLAN' },
+  { v:'if', c:'mac-vlan enable', out:'ok', d:'接口启用 MAC VLAN' },
+  { v:'if', c:'voice-vlan enable', out:'ok', d:'接口启用语音 VLAN' },
+  { v:'if', c:'dot1q termination vid <vlanid:VLAN ID>', out:'ok', d:'子接口封装单层 VLAN' },
+  { v:'if', c:'link-protocol hdlc', out:'ok', d:'接口链路层协议改为 HDLC' },
+  { v:'if', c:'ppp authentication-mode <enum{pap,chap}:认证方式>', out:'ok', d:'PPP 认证方式' },
+  { v:'if', c:'ppp chap password cipher <str:密码>', out:'ok', d:'PPP CHAP 密码' },
+  { v:'if', c:'pppoe-client dial-bundle-number <num[1-255]:拨号组号>', out:'ok', d:'PPPoE 客户端拨号' },
+
+  /* 堆叠 / 文件系统 */
+  { v:'system', c:'stack slot <num[0-8]:槽位号> priority <num[1-255]:优先级>', out:'ok', d:'设置堆叠优先级' },
+  { v:'system', c:'stack slot <num[0-8]:槽位号> renumber <num[0-8]:新槽位号>', out:'ok', d:'修改堆叠槽位号' },
+  { v:'user', c:'dir', out:'dir', d:'查看文件列表' },
+  { v:'user', c:'copy <str:源文件> <str:目标文件>', out:'ok', d:'复制文件' },
+  { v:'user', c:'move <str:源文件> <str:目标文件>', out:'ok', d:'移动文件' },
+  { v:'user', c:'delete <str:文件名>', out:'ok', d:'删除文件' },
+  { v:'user', c:'startup saved-configuration <str:配置文件名>', out:'ok', d:'指定下次启动配置文件' }
+];
+
+/* 第五批：VXLAN / Smart Link / RRPP / 防火墙 / RADIUS 模板 */
+var SPEC_MORE4 = [
+  /* VXLAN */
+  { v:'system', c:'bridge-domain <num[1-16777215]:BD ID>', out:'ok', d:'创建广播域 BD' },
+  { v:'if', c:'source <ipv4:VTEP源地址>', out:'ok', d:'Nve 接口指定 VTEP 源地址' },
+  { v:'if', c:'vni <num[1-16777215]:VNI> head-end peer-list <ipv4:对端VTEP地址>', out:'ok', d:'VNI 绑定远端 VTEP' },
+
+  /* Smart Link */
+  { v:'system', c:'smart-link group <num[1-8]:组号>', to:'smartLink', d:'创建 Smart Link 组' },
+  { v:'smartLink', c:'port <ifname:主接口> primary', out:'ok', d:'指定主接口' },
+  { v:'smartLink', c:'port <ifname:从接口> secondary', out:'ok', d:'指定从接口' },
+  { v:'smartLink', c:'protected-vlan reference-instance <num[0-4094]:实例ID>', out:'ok', d:'绑定保护 VLAN' },
+  { v:'smartLink', c:'flush enable', out:'ok', d:'开启流量刷新' },
+  { v:'smartLink', c:'quit', pop:true, d:'返回系统视图' },
+
+  /* RRPP */
+  { v:'system', c:'rrpp domain <num[1-8]:域ID>', to:'rrpp', d:'创建 RRPP 域' },
+  { v:'rrpp', c:'control-vlan <vlanid:控制VLAN>', out:'ok', d:'指定控制 VLAN' },
+  { v:'rrpp', c:'protected-vlan reference-instance <num[0-4094]:实例ID>', out:'ok', d:'绑定保护 VLAN' },
+  { v:'rrpp', c:'ring <num[0-127]:环号> node-mode <enum{master,transit}:节点角色>', out:'ok', d:'配置环上节点角色' },
+  { v:'rrpp', c:'quit', pop:true, d:'返回系统视图' },
+
+  /* 防火墙 / ASPF */
+  { v:'system', c:'firewall enable', out:'ok', d:'开启防火墙功能' },
+  { v:'system', c:'firewall default <enum{permit,deny}:默认动作>', out:'ok', d:'设置域间默认动作' },
+  { v:'if', c:'firewall packet-filter <aclnum:ACL编号> inbound', out:'ok', d:'接口入方向包过滤' },
+
+  /* RADIUS / SNMP v3 / NTP 认证 / SCP */
+  { v:'system', c:'radius-server template <name:模板名>', to:'radius', d:'进入 RADIUS 模板视图' },
+  { v:'radius', c:'radius-server shared-key cipher <str:共享密钥>', out:'ok', d:'配置共享密钥' },
+  { v:'radius', c:'radius-server authentication <ipv4:服务器地址> <num[1-65535]:端口>', out:'ok', d:'指定认证服务器' },
+  { v:'radius', c:'quit', pop:true, d:'返回系统视图' },
+  { v:'system', c:'snmp-agent usm-user v3 <name:用户名> group <name:组名>', out:'ok', d:'创建 SNMPv3 用户' },
+  { v:'system', c:'snmp-agent group v3 <name:组名> privacy', out:'ok', d:'创建 SNMPv3 用户组' },
+  { v:'system', c:'ntp-service authentication enable', out:'ok', d:'开启 NTP 认证' },
+  { v:'system', c:'ntp-service authentication-keyid <num[1-1024]:密钥ID> md5 cipher <str:密钥>', out:'ok', d:'配置 NTP 认证密钥' },
+  { v:'system', c:'scp server enable', out:'ok', d:'开启 SCP 服务' }
+];
+
+/* ===== 第六批：按 HCIP-Datacom 考纲逐项对齐 ===== */
+var SPEC_MORE5 = [
+  /* ---- A. OSPF 深化（LSA / 特殊区域 / 汇总 / 选路） ---- */
+  { v:'ospf', c:'timer hello <num[1-65535]:Hello间隔>', out:'ok', d:'进程级 Hello 间隔' },
+  { v:'ospf', c:'maximum load-balancing <num[1-8]:最大负载数>', out:'ok', d:'OSPF 等价路由数' },
+  { v:'ospf', c:'nexthop <ipv4:下一跳IP> weight <num[1-254]:权重>', out:'ok', d:'配置等价下一跳权重' },
+  { v:'ospf', c:'stub-router', out:'ok', d:'配置 Stub 路由器' },
+  { v:'ospf', c:'undo silent-interface all', out:'ok', d:'取消全部接口静默' },
+  { v:'ospf', c:'filter-policy <aclnum:ACL编号> import', out:'ok', d:'过滤接收的路由' },
+  { v:'ospfArea', c:'abr-summary <ipv4:汇总网段> <mask:子网掩码> not-advertise', out:'ok', d:'汇总并抑制明细' },
+  { v:'ospfArea', c:'filter <ipv4:过滤网段> <wildcard:反掩码> not-advertise', out:'ok', d:'过滤并抑制' },
+  { v:'ospfArea', c:'network <ipv4:目的网段> <wildcard:反掩码> cost <num[1-65535]:开销>', out:'ok', d:'宣告网段并指定开销' },
+  { v:'ospfArea', c:'stub default-cost <num[0-16777214]:默认开销>', out:'ok', d:'Stub 区域默认开销' },
+
+  /* ---- B. IS-IS 深化（级别 / 泄漏 / 认证 / 开销） ---- */
+  { v:'isis', c:'default-route-advertise', out:'ok', d:'下发默认路由' },
+  { v:'isis', c:'timer lsp-generation <num[1-120]:最大间隔>', out:'ok', d:'LSP 生成间隔' },
+  { v:'isis', c:'timer spf <num[1-120]:最大间隔>', out:'ok', d:'SPF 计算间隔' },
+  { v:'isis', c:'circuit-cost <num[1-16777215]:circuit开销>', out:'ok', d:'全局 circuit 开销' },
+  { v:'isis', c:'undo set-overload', out:'ok', d:'取消过载位' },
+  { v:'if', c:'isis circuit-level <enum{level-1,level-2,level-1-2}:电路级别>', out:'ok', d:'配置接口 IS-IS 级别' },
+  { v:'if', c:'isis silent', out:'ok', d:'接口抑制 IS-IS 报文' },
+  { v:'if', c:'isis cost <num[1-16777215]:接口开销> level-1', out:'ok', d:'配置 Level-1 接口开销' },
+  { v:'if', c:'isis cost <num[1-16777215]:接口开销> level-2', out:'ok', d:'配置 Level-2 接口开销' },
+
+  /* ---- C. BGP 深化（选路 / 属性 / 反射 / 联盟） ---- */
+  { v:'bgp', c:'timer keepalive <num[0-21845]:保活秒> hold <num[0-65535]:保持秒>', out:'ok', d:'全局 BGP 定时器' },
+  { v:'bgp', c:'confederation id <asnum:联盟AS号>', out:'ok', d:'配置联盟 ID' },
+  { v:'bgp', c:'confederation peer-as <asnum:子AS号>', out:'ok', d:'配置联盟子 AS' },
+  { v:'bgp', c:'confederation nonstandard', out:'ok', d:'联盟非标准兼容' },
+  { v:'bgp', c:'peer <ipv4:邻居IP> route-policy <name:路由策略名> export', out:'ok', d:'对邻居应用出方向策略' },
+  { v:'bgp', c:'peer <ipv4:邻居IP> filter-policy <aclnum:ACL编号> import', out:'ok', d:'按 ACL 过滤接收路由' },
+  { v:'bgp', c:'peer <ipv4:邻居IP> as-path-filter <num[1-256]:AS路径过滤器号> export', out:'ok', d:'按 AS-Path 过滤发布' },
+  { v:'bgp', c:'peer <ipv4:邻居IP> ip-prefix <name:前缀列表名> export', out:'ok', d:'按前缀列表过滤发布' },
+  { v:'bgp', c:'peer <ipv4:邻居IP> advertise-community', out:'ok', d:'向邻居发布团体属性' },
+  { v:'bgp', c:'peer <ipv4:邻居IP> capability-advertise route-refresh', out:'ok', d:'通告 Route-Refresh 能力' },
+  { v:'bgp', c:'peer <ipv4:邻居IP> route-reflector-client', out:'ok', d:'指定为路由反射客户端' },
+  { v:'bgp', c:'group <name:对等体组名> internal', out:'ok', d:'创建 IBGP 对等体组' },
+  { v:'bgp', c:'undo peer <ipv4:邻居IP> as-number', out:'ok', d:'删除邻居 AS 配置' },
+
+  { v:'bgpAf', c:'aggregate <ipv4:聚合网段> <mask:子网掩码> as-set', out:'ok', d:'聚合携带 AS-SET' },
+  { v:'bgpAf', c:'aggregate <ipv4:聚合网段> <mask:子网掩码> detail-suppressed', out:'ok', d:'聚合抑制明细' },
+  { v:'bgpAf', c:'peer <ipv4:邻居IP> advertise-community', out:'ok', d:'发布团体属性' },
+  { v:'bgpAf', c:'peer <ipv4:邻居IP> as-path-filter <num[1-256]:AS路径过滤器号> import', out:'ok', d:'按 AS-Path 过滤接收' },
+  { v:'bgpAf', c:'peer <ipv4:邻居IP> ip-prefix <name:前缀列表名> export', out:'ok', d:'按前缀列表过滤发布' },
+  { v:'bgpAf', c:'peer <ipv4:邻居IP> route-reflector-client', out:'ok', d:'地址族反射客户端' },
+  { v:'bgpAf', c:'undo synchronization', out:'ok', d:'关闭同步（默认已关）' },
+
+  /* ---- D. 路由控制（ip-prefix / as-path / community / route-policy） ---- */
+  { v:'system', c:'ip ip-prefix <name:前缀列表名> index <num[0-4294967295]:序号> permit <ipv4:目的网段> <num[0-32]:掩码长度>', out:'ok', d:'前缀列表（带序号）' },
+  { v:'system', c:'ip ip-prefix <name:前缀列表名> index <num[0-4294967295]:序号> permit <ipv4:目的网段> <num[0-32]:掩码长度> greater-equal <num[0-32]:最小掩码> less-equal <num[0-32]:最大掩码>', out:'ok', d:'前缀列表匹配掩码范围（考纲重点）',
+    info:{ brief:'greater-equal / less-equal 限定掩码长度范围，是路由过滤的核心考点。',
+           example:['ip ip-prefix P1 index 10 permit 10.0.0.0 8 greater-equal 24 less-equal 28'],
+           pitfall:['只写 greater-equal 不写 less-equal 时，less-equal 默认等于 32',
+                    '前缀长度必须落在 [greater-equal, less-equal] 区间内才匹配'] } },
+  { v:'system', c:'ip ip-prefix <name:前缀列表名> index <num[0-4294967295]:序号> deny <ipv4:目的网段> <num[0-32]:掩码长度>', out:'ok', d:'前缀列表拒绝项' },
+  { v:'system', c:'ip as-path-filter <num[1-256]:过滤器号> permit <str:正则表达式>', out:'ok', d:'AS-Path 过滤器',
+    info:{ brief:'用正则匹配 AS 路径，常用于防环与选路。',
+           example:['ip as-path-filter 1 permit ^100$','ip as-path-filter 2 deny _200_'],
+           pitfall:['^ 表示开头、$ 表示结尾，_ 表示 AS 分隔符（空格、逗号、括号等）'] } },
+  { v:'system', c:'ip community-filter <num[1-256]:过滤器号> basic <str:团体属性>', out:'ok', d:'团体属性过滤器' },
+  { v:'rp', c:'if-match community-filter <num[1-256]:过滤器号>', out:'ok', d:'匹配团体属性' },
+  { v:'rp', c:'apply community <str:团体属性>', out:'ok', d:'设置团体属性' },
+  { v:'rp', c:'apply as-path <str:AS路径> additive', out:'ok', d:'追加 AS-Path' },
+  { v:'rp', c:'apply preferred-value <num[0-65535]:首选值>', out:'ok', d:'设置 Preferred-Value' },
+  { v:'rp', c:'apply cost <num[1-65535]:开销值>', out:'ok', d:'设置开销（已有，补充说明）' },
+
+  /* ---- E. 组播（IGMP / PIM / MSDP） ---- */
+  { v:'if', c:'pim dm', out:'ok', d:'接口启用 PIM-DM' },
+  { v:'pim', c:'c-bsr priority <num[0-255]:优先级>', out:'ok', d:'候选 BSR 优先级' },
+  { v:'pim', c:'c-rp priority <num[0-255]:优先级>', out:'ok', d:'候选 RP 优先级' },
+  { v:'pim', c:'c-rp holdtime <num[1-65535]:保持时间>', out:'ok', d:'候选 RP 保持时间' },
+  { v:'system', c:'msdp', to:'msdp', d:'进入 MSDP 视图' },
+  { v:'msdp', c:'peer <ipv4:MSDP对等体> connect-interface <ifname:源接口>', out:'ok', d:'配置 MSDP 对等体' },
+  { v:'msdp', c:'quit', pop:true, d:'返回系统视图' },
+
+  /* ---- F. MPLS / LDP / MPLS VPN ---- */
+  { v:'system', c:'mpls ldp', to:'mplsLdp', d:'全局启用 MPLS LDP' },
+  { v:'mplsLdp', c:'graceful-restart', out:'ok', d:'LDP GR' },
+  { v:'mplsLdp', c:'quit', pop:true, d:'返回系统视图' },
+  { v:'system', c:'ip vpn-instance <name:VPN实例名>', to:'vrf', d:'创建 VPN 实例' },
+  { v:'vrf', c:'route-distinguisher <str:RD值>', out:'ok', d:'配置 RD（区分相同网段）',
+    info:{ brief:'RD 加在 IPv4 前缀前，把不同 VPN 的相同网段变成唯一 VPNv4 前缀。',
+           example:['route-distinguisher 100:1'],
+           pitfall:['RD 只在本地有效，两端不要求一致','真正控制路由导入导出的是 RT'] } },
+  { v:'vrf', c:'vpn-target <str:RT值> both', out:'ok', d:'配置 RT（控制路由导入导出）' },
+  { v:'vrf', c:'quit', pop:true, d:'返回系统视图' },
+  { v:'if', c:'ip binding vpn-instance <name:VPN实例名>', out:'ok', d:'接口绑定 VPN 实例' },
+  { v:'bgp', c:'ipv4-family vpnv4', to:'bgpVpn', d:'进入 VPNv4 地址族' },
+  { v:'bgpVpn', c:'peer <ipv4:邻居IP> enable', out:'ok', d:'VPNv4 激活邻居' },
+  { v:'bgpVpn', c:'policy vpn-target', out:'ok', d:'启用 RT 过滤' },
+  { v:'bgpVpn', c:'quit', pop:true, d:'返回 BGP 视图' },
+
+  /* ---- G. IPv6 / DHCPv6 ---- */
+  { v:'ospfv3', c:'import-route <enum{direct,static,ospf,isis,bgp}:引入路由>', out:'ok', d:'OSPFv3 引入外部路由' },
+  { v:'ospfv3', c:'default-route-advertise', out:'ok', d:'OSPFv3 下发默认路由' },
+  { v:'system', c:'dhcpv6 pool <name:地址池名称>', to:'dhcpv6', d:'创建 DHCPv6 地址池' },
+  { v:'dhcpv6', c:'address prefix <ipv6addr:IPv6前缀> <num[0-128]:前缀长度>', out:'ok', d:'声明可分配前缀' },
+  { v:'dhcpv6', c:'excluded-address <ipv6addr:排除地址>', out:'ok', d:'排除不分配的地址' },
+  { v:'dhcpv6', c:'quit', pop:true, d:'返回系统视图' },
+  { v:'if', c:'ipv6 nd ra interval <num[4-1800]:间隔秒>', out:'ok', d:'RA 发送间隔' },
+  { v:'if', c:'ipv6 nd autoconfig managed-address-flag', out:'ok', d:'M 位置位（DHCPv6 分配地址）' },
+  { v:'if', c:'ipv6 mtu <num[1280-1500]:MTU值>', out:'ok', d:'接口 IPv6 MTU' },
+  { v:'if', c:'ipv6 address auto dhcp', out:'ok', d:'通过 DHCPv6 获取地址' },
+
+  /* ---- H. 安全（IPSG / uRPF / 端口安全扩展） ---- */
+  { v:'if', c:'ip source check user-bind enable', out:'ok', d:'IPSG：IP 报文源检查' },
+  { v:'if', c:'urpf strict', out:'ok', d:'严格 uRPF（防源地址伪造）' },
+  { v:'if', c:'urpf loose', out:'ok', d:'松散 uRPF' },
+  { v:'if', c:'dhcp snooping user-bind autosave', out:'ok', d:'绑定表自动保存' },
+  { v:'system', c:'cpu-defend policy <name:策略名>', out:'ok', d:'CPU 防攻击策略' },
+
+  /* ---- I. QoS 深化 ---- */
+  { v:'if', c:'qos car inbound cir <num[64-100000000]:承诺速率kbps>', out:'ok', d:'接口入方向限速' },
+  { v:'if', c:'qos lr outbound cir <num[64-100000000]:承诺速率kbps>', out:'ok', d:'接口出方向限速' },
+  { v:'if', c:'qos queue <num[0-7]:队列号> wrr weight <num[1-100]:权重>', out:'ok', d:'WRR 队列权重' },
+  { v:'qosBeh', c:'remark 8021p <num[0-7]:802.1p优先级>', out:'ok', d:'重标记 802.1p' },
+  { v:'qosBeh', c:'statistic enable', out:'ok', d:'开启流量统计' },
+  { v:'qosCls', c:'if-match dscp <num[0-63]:DSCP值>', out:'ok', d:'按 DSCP 分类' },
+  { v:'qosCls', c:'if-match any', out:'ok', d:'匹配所有流量' },
+
+  /* ---- J. 排错与运维（H12-831 主线） ---- */
+  { v:'user', c:'display ospf lsdb router', out:'ospflsdb', d:'查看 Type-1 LSA' },
+  { v:'user', c:'display ospf lsdb network', out:'ospflsdb', d:'查看 Type-2 LSA' },
+  { v:'user', c:'display ospf lsdb summary', out:'ospflsdb', d:'查看 Type-3 LSA' },
+  { v:'user', c:'display ospf lsdb asbr', out:'ospflsdb', d:'查看 Type-4 LSA' },
+  { v:'user', c:'display ospf lsdb ase', out:'ospflsdb', d:'查看 Type-5 LSA' },
+  { v:'user', c:'display ospf lsdb nssa', out:'ospflsdb', d:'查看 Type-7 LSA' },
+  { v:'user', c:'display bgp routing-table peer <ipv4:邻居IP> received-routes', out:'bgproute', d:'查看从邻居收到的路由' },
+  { v:'user', c:'display bgp routing-table community', out:'bgproute', d:'按团体属性查看路由' },
+  { v:'user', c:'display ip routing-table vpn-instance <name:VPN实例名>', out:'route', d:'查看 VPN 实例路由表' },
+  { v:'user', c:'display bgp vpnv4 all routing-table', out:'bgproute', d:'查看 VPNv4 路由' },
+  { v:'user', c:'display pim routing-table', out:'pim', d:'查看 PIM 路由表' },
+  { v:'user', c:'display msdp peer-status', out:'pim', d:'查看 MSDP 对等体状态' },
+  { v:'user', c:'display bfd session all', out:'bfd', d:'查看 BFD 会话' },
+  { v:'user', c:'display rrpp brief', out:'rrpp', d:'查看 RRPP 状态' },
+  { v:'user', c:'display smart-link group all', out:'rrpp', d:'查看 Smart Link 组' },
+  { v:'user', c:'display eth-trunk <num[0-127]:Eth-Trunk编号> verbose', out:'trunk', d:'查看链路聚合详情' },
+  { v:'user', c:'display stp instance <num[0-4094]:实例ID>', out:'stp', d:'查看指定实例生成树' },
+  { v:'user', c:'reset ospf counters', out:'ok', d:'清除 OSPF 统计' },
+  { v:'user', c:'reset bgp <asnum:AS号>', out:'ok', d:'重置指定 AS 的 BGP 连接' },
+  { v:'user', c:'reset isis all', out:'ok', d:'重置 IS-IS 邻居' },
+
+  /* ---- K. 考纲高频遗漏点 ---- */
+  { v:'isis', c:'import-route isis level-1 into level-2', out:'ok', d:'IS-IS 路由泄漏（L1 → L2）',
+    info:{ brief:'把 Level-1 路由引入 Level-2，让骨干区域能看到末梢区域的路由。',
+           example:['import-route isis level-1 into level-2'],
+           pitfall:['反向（L2 → L1）要配 filter-policy 或路由标记，否则易出环',
+                    '泄漏后 L1 路由器仍只有默认路由，需要 L2 侧下发'] } },
+  { v:'ospfArea', c:'nssa no-summary', out:'ok', d:'Totally NSSA 区域' },
+  { v:'bgp', c:'default med <num[0-4294967295]:MED值>', out:'ok', d:'修改默认 MED' },
+  { v:'bgp', c:'default local-preference <num[0-4294967295]:本地优先级>', out:'ok', d:'修改默认 Local-Preference' },
+  { v:'bgp', c:'peer <ipv4:邻居IP> preferred-value <num[0-65535]:首选值>', out:'ok', d:'设置邻居路由首选值' },
+  { v:'vlan', c:'igmp-snooping enable', out:'ok', d:'VLAN 内开启 IGMP Snooping' },
+  { v:'if', c:'igmp-snooping enable', out:'ok', d:'接口开启 IGMP Snooping' },
+  { v:'user', c:'display igmp-snooping group', out:'pim', d:'查看 IGMP Snooping 组表' },
+  { v:'user', c:'display vrrp verbose', out:'vrrp', d:'查看 VRRP 详细状态' },
+  { v:'user', c:'display ospf peer verbose', out:'ospfpeer', d:'查看 OSPF 邻居详情' }
+];
+SPEC = SPEC.concat(SPEC_MORE).concat(SPEC_MORE2).concat(SPEC_MORE3).concat(SPEC_MORE4).concat(SPEC_MORE5);
+
+/* 把「一行一条」编译成命令树：关键字为边，<类型:语义> 为带类型的叶子 */
+function parseToken(t){
+  var m = /^<([a-z][a-z0-9]*)(?:\[(\d+)-(\d+)\])?(?:\{([^}]*)\})?(?::([^>]*))?>$/.exec(t);
+  if (!m) return null;
+  var o = { param:m[1], role:m[5] || '' };
+  if (m[2] != null) o.range = [+m[2], +m[3]];
+  if (m[4]) o.options = m[4].split(',');
+  return o;
+}
+
+/* 按空格切词，但 <...> 内部允许有空格（如 <vlanid:VLAN ID>） */
+function splitToks(s){
+  var out = [], buf = '', i = 0;
+  while (i < s.length){
+    var ch = s[i];
+    if (ch === '<'){
+      if (buf) { out.push(buf); buf = ''; }
+      var j = s.indexOf('>', i);
+      if (j < 0) throw new Error('占位符缺少 >: ' + s);
+      out.push(s.slice(i, j + 1));
+      i = j + 1;
+    } else if (ch === ' '){
+      if (buf) { out.push(buf); buf = ''; }
+      i++;
+    } else { buf += ch; i++; }
+  }
+  if (buf) out.push(buf);
+  return out;
+}
+
+function buildViews(){
+  var out = {};
+  Object.keys(VIEWMETA).forEach(function(id){
+    var m = VIEWMETA[id];
+    out[id] = { id:id, name:m.name, enter:m.enter || null, nodes:[] };
+  });
+
+  SPEC.forEach(function(item){
+    var view = out[item.v];
+    if (!view) throw new Error('未定义视图: ' + item.v);
+    var toks = splitToks(item.c);
+    var nodes = view.nodes;
+
+    for (var i=0;i<toks.length;i++){
+      var t = toks[i], isLast = (i === toks.length - 1), node = null;
+      var p = parseToken(t);
+      if (!p && t.charAt(0) === '<') throw new Error('参数写法有误: ' + t + '  ←  ' + item.c);
+
+      if (p){
+        for (var j=0;j<nodes.length;j++){
+          var q = nodes[j];
+          if (q.type === 'param' && q.param === p.param && q.role === p.role){ node = q; break; }
+        }
+        if (!node){
+          node = { type:'param', param:p.param, role:p.role, help:'', children:[] };
+          if (p.range) node.range = p.range;
+          if (p.options) node.options = p.options;
+          if (p.param === 'ipv4' && /IP|网关/.test(p.role)) node.warnHost = true;
+          if (item.rep && isLast) node.rep = true;
+          nodes.push(node);
+        }
+      } else {
+        for (var k=0;k<nodes.length;k++){
+          if (nodes[k].type === 'keyword' && nodes[k].text === t){ node = nodes[k]; break; }
+        }
+        if (!node){
+          var al = (ALIAS[t] || []).slice();
+          /* VRP 里 q 就等于 quit，即使同一视图还有 qos，也不能算歧义 */
+          if (t === 'quit') al.push('q');
+          node = { type:'keyword', text:t, alias:al,
+                   help:(KEYHELP[t] || ''), children:[] };
+          nodes.push(node);
+        }
+      }
+
+      if (isLast){
+        node.action = item.to ? { view:item.to }
+                    : item.out ? { print:item.out }
+                    : item.pop ? { pop:true }
+                    : item.reset ? { reset:true }
+                    : { print:'ok' };
+        if (item.d){
+          node.cmd = item.d;              // 命令本身的说明
+          if (node.type === 'keyword') node.help = item.d;
+        }
+        if (item.info) node.info = item.info;
+      }
+      nodes = node.children;
+    }
+  });
+
+  /* display / ping 在所有视图可用，共享同一棵子树 */
+  var shared = out.user.nodes.filter(function(n){ return n.text === 'display' || n.text === 'ping'; });
+  shared.forEach(function(n){ n.home = 'user'; });
+  /* 和 VRP 一样：在任何视图里都能直接 interface x / vlan x 跳到另一个对象视图 */
+  var jump = out.system.nodes.filter(function(n){ return n.text === 'interface' || n.text === 'vlan'; });
+  jump.forEach(function(n){ n.home = 'system'; });
+  Object.keys(out).forEach(function(id){
+    if (id === 'user') return;
+    shared.concat(jump).forEach(function(n){
+      var has = out[id].nodes.some(function(x){ return x.text === n.text; });
+      if (!has){ n.shared = true; out[id].nodes.push(n); }
+    });
+  });
+
+  /* 关键字没有单独说明时：若它只通向一条命令，就沿用那条命令的注释，
+     这样 ? 列表里不会出现大片空白 */
+  function collectLeaves(node, acc){
+    (node.children || []).forEach(function(c){
+      if (c.type === 'keyword' && !c.children.length) acc.push(c);
+      else if (c.children && c.children.length) collectLeaves(c, acc);
+      else if (c.cmd || c.info) acc.push(c);
+    });
+  }
+  function fillHelp(nodes){
+    nodes.forEach(function(n){
+      if (n.children && n.children.length) fillHelp(n.children);
+      if (n.type !== 'keyword' || n.help) return;
+      var leaves = [];
+      collectLeaves(n, leaves);
+      if (leaves.length === 1){
+        var lf = leaves[0];
+        var t = (lf.cmd || (lf.info && lf.info.brief) || lf.help || '');
+        if (t) n.help = t.split('。')[0];
+      }
+    });
+  }
+  Object.keys(out).forEach(function(id){ fillHelp(out[id].nodes); });
+
+  return out;
+}
+
+var VIEWS = buildViews();
+
+/* ============ 3. 解析引擎 ============ */
+
+/* 3.1 把 "g 0/0/0" 合并成 "g0/0/0"（接口名带空格是 VRP 的合法写法） */
+function mergeTokens(toks){
+  var out = [];
+  for (var i=0;i<toks.length;i++){
+    var t = toks[i], nx = toks[i+1], n2 = toks[i+2];
+    // 10 to 20 视为一个 VLAN 范围
+    if (nx && n2 && /^\d+$/.test(t) && /^to$/i.test(nx) && /^\d+$/.test(n2)){
+      out.push(t + 'to' + n2); i += 2; continue;
+    }
+    // g 0/0/0 → g0/0/0（接口名中间带空格是 VRP 合法写法）
+    if (nx && /^(g|ge|gi|gigabitethernet|xge|10ge|xgigabitethernet|eth-trunk|etrunk|loopback|lo|vlanif|serial|s|null)$/i.test(t)
+        && /^\d+(\/\d+)*$/.test(nx)){
+      out.push(t + nx); i++;
+    } else out.push(t);
+  }
+  return out;
+}
+
+function validateParam(node, value){
+  var P = PARAMS[node.param];
+  if (!P || !P.check) return { ok:true };
+  return P.check(value, node);
+}
+
+/* 3.2 解析一行命令：返回 {tokens, path, cur, err, action} */
+function analyze(viewId, raw){
+  var toks = mergeTokens(String(raw || '').trim() ? String(raw).trim().split(/\s+/) : []);
+  var cur = (VIEWS[viewId] || V_USER).nodes;
+  var path = [];
+  var err = null;
+
+  for (var i=0;i<toks.length;i++){
+    var tok = toks[i];
+
+    /* --- 关键字：精确 / 别名 / 唯一前缀 --- */
+    var exact = [], pre = [];
+    for (var a=0;a<cur.length;a++){
+      var n = cur[a];
+      if (n.type !== 'keyword' || !n.text) continue;
+      var hitExact = eq(n.text, tok) || (n.alias || []).some(function(x){ return eq(x, tok); });
+      if (hitExact) exact.push(n);
+      else if (starts(n.text, tok)) pre.push(n);
+    }
+    var pool = exact.length ? exact : (pre.length === 1 ? pre : []);
+
+    if (!pool.length && pre.length > 1){
+      err = { index:i, token:tok, kind:'ambiguous',
+              msg:'Ambiguous command found at \'^\' position.',
+              detail:'缩写匹配到多条命令，需要再多输入几个字母',
+              hint:'"' + tok + '" 有歧义，可能是：' + pre.map(function(n){ return n.text; }).join(' / '),
+              expect: pre.map(function(n){ return n.text; }) };
+      break;
+    }
+
+    if (pool.length){
+      var pick = pool[0];
+      if (pool.length > 1 && toks[i+1]){
+        for (var b=0;b<pool.length;b++){
+          var ch = pool[b].children || [];
+          for (var c=0;c<ch.length;c++){
+            if (ch[c].type === 'keyword' && (eq(ch[c].text, toks[i+1]) || starts(ch[c].text, toks[i+1]))){ pick = pool[b]; }
+          }
+        }
+      }
+      path.push({ node:pick, value:tok, kind:'keyword', display:pick.text });
+      cur = pick.children || [];
+      continue;
+    }
+
+    /* --- 参数 --- */
+    var paramNodes = cur.filter(function(n){ return n.type === 'param'; });
+    if (paramNodes.length){
+      var hit = null, firstErr = null;
+      for (var d=0;d<paramNodes.length;d++){
+        var v = validateParam(paramNodes[d], tok);
+        if (v.ok){ hit = { node:paramNodes[d], v:v }; break; }
+        if (!firstErr) firstErr = { node:paramNodes[d], v:v };
+      }
+      if (hit){
+        path.push({ node:hit.node, value:tok, kind:'param',
+                    display:hit.v.canon || tok, note:hit.v.note || '', warn:hit.v.maskConfused });
+        cur = hit.node.children || [];
+        /* 可重复参数（VLAN 列表等）连续吃掉后续同类 token */
+        if (hit.node.rep){
+          while (i + 1 < toks.length){
+            var nv = validateParam(hit.node, toks[i+1]);
+            if (!nv.ok) break;
+            i++;
+            path.push({ node:hit.node, value:toks[i], kind:'param',
+                        display:nv.canon || toks[i], note:nv.note || '' });
+          }
+        }
+        continue;
+      }
+      /* 与 VRP 一致：类型/取值不对统一报 Wrong parameter，
+         中文原因放到 detail/hint 里，终端在下一行用 ↳ 带出来 */
+      err = { index:i, token:tok, kind:'param', node:firstErr.node,
+              msg:'Wrong parameter found at \'^\' position.',
+              detail:firstErr.v.msg,
+              fix:firstErr.v.hint || '',
+              hint:(firstErr.v.msg || '') + (firstErr.v.hint ? '；' + firstErr.v.hint : ''),
+              maskConfused:firstErr.v.maskConfused };
+      break;
+    }
+
+    /* 命令已经写完整了还继续输入 → Too many parameters（VRP 的实际报法） */
+    if (!cur.length && path.length){
+      err = { index:i, token:tok, kind:'toomany',
+              msg:'Too many parameters found at \'^\' position.',
+              detail:'命令已经写完整了，后面多出了参数' };
+      break;
+    }
+
+    err = { index:i, token:tok, kind:'unknown',
+            msg:'Unrecognized command found at \'^\' position.',
+            detail:'这里没有这条命令，检查拼写，或按 ? 看当前可用的命令',
+            expect: cur.filter(function(n){ return n.type === 'keyword' && n.text; }).map(function(n){ return n.text; }) };
+    break;
+  }
+
+  var last = path.length ? path[path.length-1].node : null;
+  return {
+    tokens: toks, path: path, cur: cur, err: err,
+    action: last && last.action ? last.action : null,
+    node: last
+  };
+}
+
+/* 3.3 把缩写还原成完整命令：关键字取规范拼写，参数取规范化后的值
+   （int g 0/0/1 → interface GigabitEthernet0/0/1） */
+function canonical(res){
+  if (!res || !res.path || !res.path.length) return '';
+  return res.path.map(function(p){
+    return p.kind === 'keyword' ? p.node.text : (p.display || p.value);
+  }).join(' ');
+}
+
+/* 3.3a 补全建议：{items, prefix, base, ctx} */
+function suggest(viewId, raw){
+  var s = String(raw == null ? '' : raw);
+  var trailing = /\s$/.test(s) || s === '';
+  var base, prefix;
+  if (trailing){ base = s.trim(); prefix = ''; }
+  else {
+    var k = s.lastIndexOf(' ');
+    base = k < 0 ? '' : s.slice(0, k).trim();
+    prefix = k < 0 ? s : s.slice(k + 1);
+  }
+
+  var ctx = analyze(viewId, base);
+  var nodes = ctx.cur || [];
+  var kws = [], params = [];
+
+  for (var i=0;i<nodes.length;i++){
+    var n = nodes[i];
+    if (n.type === 'keyword'){
+      if (!n.text) continue;
+      var ok = !prefix || starts(n.text, prefix) || (n.alias || []).some(function(x){ return starts(x, prefix); });
+      if (ok) kws.push({ kind:'kw', text:n.text, label:n.text, help:n.help, node:n });
+    } else {
+      var P = PARAMS[n.param] || {};
+      params.push({ kind:'param', label:P.label || n.param, role:n.role || '',
+                    sample:n.sample || P.sample || (n.options && n.options[0]) || '',
+                    help:n.help || P.hint || '', node:n });
+    }
+  }
+  return { items: kws.concat(kws.length ? [] : params), kws:kws, params:params,
+           prefix:prefix, base:base, ctx:ctx, trailing:trailing };
+}
+
+function commonPrefix(arr){
+  if (!arr.length) return '';
+  var p = arr[0];
+  for (var i=1;i<arr.length;i++){
+    var s = arr[i];
+    while (s.toLowerCase().indexOf(p.toLowerCase()) !== 0 && p.length) p = p.slice(0, -1);
+  }
+  return p;
+}
+
+/* 3.3b 参数候选值：枚举取 options，接口名之类给多个常见样本，其余给单个样本 */
+function paramValues(node){
+  var P = PARAMS[node.param] || {};
+  if (node.options && node.options.length) return node.options.slice();
+  if (P.samples && P.samples.length) return P.samples.slice();
+  var one = node.sample || P.sample;
+  return one ? [one] : [];
+}
+
+/* 3.4 命令库枚举 */
+function enumerate(){
+  var out = [], seen = {};
+  function walk(viewId, nodes, tmpl, sample, chain){
+    for (var i=0;i<nodes.length;i++){
+      var n = nodes[i], isKw = n.type === 'keyword';
+      var t2 = isKw ? (tmpl + (tmpl ? ' ' : '') + n.text) : (tmpl + (tmpl ? ' ' : '') + '⟨' + (n.role || (PARAMS[n.param]||{}).label || n.param) + '⟩');
+      var s2 = isKw ? (sample + (sample ? ' ' : '') + n.text)
+                    : (sample + (sample ? ' ' : '') + (n.sample || (PARAMS[n.param]||{}).sample || (n.options && n.options[0]) || ''));
+      var ch = n.children || [];
+      if (!ch.length){
+        var key = viewId + '|' + t2;
+        var trivial = (n.type === 'keyword' && (n.text === 'quit' || n.text === 'return'));
+        if (!seen[key] && t2 && !trivial){
+          seen[key] = 1;
+          out.push({ view:viewId, syntax:t2, sample:s2, brief:deepBrief(n) || n.cmd || n.help || '',
+                     node:n });
+        }
+      } else walk(viewId, ch, t2, s2, chain);
+    }
+  }
+  for (var v in VIEWS){
+    /* display / ping 是共享子树，只在用户视图下统计一次，否则会重复 25 遍 */
+    var vn = VIEWS[v].nodes.filter(function(n){ return !n.home || n.home === v; });
+    walk(v, vn, '', '', []);
+  }
+  return out;
+}
+
+function deepBrief(node){
+  var info = findInfo(node);
+  return info && info.brief ? info.brief : '';
+}
+
+/* 3.5 沿路径找最近的 info */
+function findInfo(){
+  for (var i=arguments.length-1;i>=0;i--){
+    var n = arguments[i];
+    if (n && n.info) return n.info;
+  }
+  return null;
+}
+
+function pathInfo(path){
+  var nodes = path.map(function(p){ return p.node; });
+  return findInfo.apply(null, nodes);
+}
+
+/* 3.6 视图祖先链（用于渲染分层上下文） */
+function viewChain(viewId){
+  var chain = [], id = viewId, guard = 0;
+  while (id && VIEWS[id] && guard++ < 10){
+    chain.unshift(id);
+    var e = VIEWS[id].enter;
+    id = e ? e.from : null;
+  }
+  return chain;
+}
+
+function maskInfo(v){
+  if (!isIp(v)) return null;
+  var b = toBits(v);
+  var contiguous = /^1*0*$/.test(b);
+  return {
+    value: v,
+    bits: b.replace(/(.{8})/g, '$1 ').trim(),
+    contiguous: contiguous,
+    prefix: contiguous ? prefixOf(v) : null,
+    wildcard: fromBits(invBits(b)),
+    kind: contiguous && v !== '0.0.0.0' && v !== '255.255.255.255' ? 'mask' : 'other'
+  };
+}
+
+return {
+  PARAMS: PARAMS, VIEWS: VIEWS, VIEWMETA: VIEWMETA, SPEC: SPEC,
+  analyze: analyze, suggest: suggest, commonPrefix: commonPrefix, paramValues: paramValues,
+  canonical: canonical,
+  enumerate: enumerate, viewChain: viewChain, pathInfo: pathInfo,
+  isIp: isIp, isMask: isMask, maskInfo: maskInfo, wildcardOf: wildcardOf,
+  esc: esc, mergeTokens: mergeTokens
+};
+})();
+if (typeof window !== 'undefined') window.VRP = VRP;
+</script>
+
+<!-- ==================================================================== -->
+<!-- 界面层 -->
+<!-- ==================================================================== -->
+<script id="vrp-ui">
+(function(){
+'use strict';
+var $ = function(s){ return document.querySelector(s); };
+var T = $('#term'), CMD = $('#cmd'), PROMPT = $('#prompt'),
+    HINT = $('#hintbar'), CANDS = $('#cands'), DETAIL = $('#tb-detail');
+
+var state = {
+  view:'user',
+  stack:['user'],
+  sysname:'Huawei',
+  ifName:'GigabitEthernet0/0/0',
+  trunkId:'1',
+  vlanId:'10',
+  ospfPid:'1',
+  areaId:'0.0.0.0',
+  isisPid:'1',
+  aclNum:'3000',
+  poolName:'1',
+  rpName:'RP1',
+  ospfv3Pid:'1',
+  ripPid:'1',
+  pbrName:'PBR1',
+  clsName:'c1',
+  behName:'b1',
+  polName:'p1',
+  slGroup:'1',
+  rrppId:'1',
+  radiusName:'rd1',
+  vrfName:'VPN1',
+  pool6Name:'p6',
+  hist:[], hi:-1,
+  lastRun:null
+};
+
+/* ---------- 输出 ---------- */
+function line(text, cls){
+  var d = document.createElement('div');
+  d.className = 'l ' + (cls || 'o');
+  d.textContent = text;
+  T.appendChild(d);
+  T.scrollTop = T.scrollHeight;
+  return d;
+}
+function rawLine(html, cls){
+  var d = document.createElement('div');
+  d.className = 'l ' + (cls || 'o');
+  d.innerHTML = html;
+  T.appendChild(d);
+  T.scrollTop = T.scrollHeight;
+  return d;
+}
+function blank(){ return line('', 'd'); }
+
+function fillTpl(view){
+  var meta = VRP.VIEWMETA[view] || VRP.VIEWMETA.user;
+  return meta.tpl.replace(/\{(\w+)\}/g, function(_, k){
+    if (k === 'h') return state.sysname;
+    if (k === 'aclType') return (+state.aclNum < 3000 ? 'basic' : 'adv');
+    return state[k] != null ? state[k] : '';
+  });
+}
+function promptText(){ return fillTpl(state.view); }
+function promptFor(vid){ return fillTpl(vid); }
+
+var VIEWNAME = {};
+Object.keys(VRP.VIEWMETA).forEach(function(k){ VIEWNAME[k] = VRP.VIEWMETA[k].name; });
+
+/* ---------- 着色 ---------- */
+var TCLS = { keyword:'tk', ifname:'tif', ipv4:'tip', mask:'tm', wildcard:'tw',
+             num:'tn', enum:'tn', aclnum:'tn', vlanid:'tn', vlanlist:'tn', asnum:'tn',
+             areaid:'tn', name:'ts', str:'ts', mac:'ts' };
+
+function echoColored(raw, res){
+  var html = '<span class="p">' + VRP.esc(promptText()) + '</span>';
+  if (res && res.path.length && !res.err){
+    var idx = 0, parts = [];
+    for (var i=0;i<res.path.length;i++){
+      var p = res.path[i];
+      var cls = p.kind === 'keyword' ? 'tk' : (TCLS[p.node.param] || 'ts');
+      /* 回显保持用户输入的原样；完整形式由下一行的「已识别」给出 */
+      parts.push('<span class="tok ' + cls + '">' + VRP.esc(p.value) + '</span>');
+      idx++;
+    }
+    html += parts.join(' ');
+  } else {
+    html += VRP.esc(raw);
+  }
+  var div = rawLine(html, '');
+  /* 记下这一行属于哪个视图、原始命令，供框选批量记录用 */
+  if (res && res.path.length && !res.err){
+    div.dataset.view = state.view;
+    div.dataset.cmd = raw;
+  }
+  return div;
+}
+
+function echoError(raw, res){
+  echoColored(raw, null);
+  var e = res.err;
+  var pad = promptText().length;
+  var toks = raw.trim().split(/\s+/);
+  for (var i=0;i<e.index;i++) pad += toks[i].length + 1;
+  rawLine(' '.repeat(pad) + '<span class="caret">^</span>', '');
+  line('Error: ' + e.msg, 'e');
+  if (e.hint) line('  ↳ ' + e.hint, 'd');
+}
+
+/* ---------- 视图切换 ---------- */
+function enterView(view, patch){
+  if (patch) for (var k in patch) state[k] = patch[k];
+  /* 同层切换（interface A → interface B、vlan 10 → vlan 20）是替换，不是入栈，
+     这样后面一个 q 就能回到系统视图，跟 eNSP 一致 */
+  if (state.view === view && state.stack.length > 1){
+    state.stack[state.stack.length - 1] = view;
+  } else {
+    state.stack.push(view);
+  }
+  state.view = view;
+}
+function popView(){
+  if (state.stack.length > 1){ state.stack.pop(); state.view = state.stack[state.stack.length-1]; }
+}
+function resetView(){ state.stack = ['user']; state.view = 'user'; }
+
+/* ---------- 执行 ---------- */
+var OUT = {
+  version:[
+    'Huawei Versatile Routing Platform Software',
+    'VRP (R) software, Version 8.180 (S5700 V200R019C10SPC500)',
+    'Copyright (C) 2012-2026 Huawei Technologies Co., Ltd.',
+    'HUAWEI S5700-28C-EI uptime is 0 day, 2 hours, 13 minutes'
+  ],
+  config:[
+    '!Software Version V200R019C10SPC500',
+    'sysname ' + 'Huawei',
+    '#',
+    'interface GigabitEthernet0/0/0',
+    ' ip address 192.168.1.254 255.255.255.0',
+    '#',
+    'ip route-static 0.0.0.0 0.0.0.0 192.168.1.1',
+    'return'
+  ],
+  route:[
+    'Route Flags: R - relay, D - download to fib',
+    '----------------------------------------------------------------',
+    'Routing Tables: Public',
+    '         Destinations : 4        Routes : 4',
+    '',
+    'Destination/Mask    Proto   Pre  Cost     Flags NextHop         Interface',
+    '',
+    '        0.0.0.0/0   Static  60   0          RD   192.168.1.1     GigabitEthernet0/0/0',
+    '    192.168.1.0/24  Direct  0    0           D   192.168.1.254   GigabitEthernet0/0/0',
+    '  192.168.1.254/32  Direct  0    0           D   127.0.0.1       InLoopBack0'
+  ],
+  ifbrief:[
+    'Interface                   PHY   Protocol InUti OutUti   inErrors  outErrors',
+    'GigabitEthernet0/0/0        up    up          0%     0%          0          0',
+    'GigabitEthernet0/0/1        down  down        0%     0%          0          0'
+  ],
+  ifdetail:[
+    'GigabitEthernet0/0/0 current state : UP',
+    'Line protocol current state : UP',
+    'Description : to-core',
+    'Internet Address is 192.168.1.254/24',
+    'Port Mode : COMMON COPPER',
+    'Last physical up time : 2026-11-06 14:02:31'
+  ],
+  vlan:[
+    'The total number of vlans is : 3',
+    '-------------------------------------------------------------------------------',
+    'U: Up;  D: Down;  TG: Tagged;  UT: Untagged;',
+    '-------------------------------------------------------------------------------',
+    '',
+    'VID  Type    Ports',
+    '-------------------------------------------------------------------------------',
+    '1    common  UT:GE0/0/1(U)     GE0/0/2(U)',
+    '10   common  UT:GE0/0/3(U)     TG:GE0/0/24(U)'
+  ],
+  portvlan:[
+    'Port                        Link Type    PVID  Trunk VLAN List',
+    '------------------------------------------------------------------',
+    'GigabitEthernet0/0/3        access       10    -',
+    'GigabitEthernet0/0/24       trunk        1     1 10 20'
+  ],
+  mac:[
+    'MAC Address Table',
+    '------------------------------------------------------------------',
+    'Destination/MAC     VLAN  Type        Port',
+    '5489-98a1-0001       10    dynamic     GE0/0/3',
+    '5489-98a1-0002       10    dynamic     GE0/0/4'
+  ],
+  arp:[
+    'IP ADDRESS      MAC ADDRESS    EXPIRE(M) TYPE INTERFACE      VPN-INSTANCE',
+    '192.168.1.1     5489-98a1-0001            I -  GE0/0/0',
+    '192.168.1.100   5489-98a1-0002  20        D-0 GE0/0/0'
+  ],
+  stp:[
+    'MSTID  Port                        Role  STP State   Protection',
+    '0      GigabitEthernet0/0/1        ROOT  FORWARDING  NONE',
+    '0      GigabitEthernet0/0/2        DESI  FORWARDING  NONE'
+  ],
+  trunk:[
+    'Group/Port   System Priority  Operate status  Weight  Flag',
+    'Eth-Trunk1   32768            up              1       --',
+    '  GE0/0/1    32768            Selected        1       --',
+    '  GE0/0/2    32768            Selected        1       --'
+  ],
+  ospfpeer:[
+    'OSPF Process 1 with Router ID 10.0.0.1',
+    ' Neighbors',
+    '',
+    ' Area 0.0.0.0 interface 10.0.0.1 (GigabitEthernet0/0/0)s neighbors',
+    ' Router ID: 10.0.0.2         Address: 10.0.0.2',
+    '   State: Full  Mode: Nbr is Master  Priority: 1',
+    '   DR: 10.0.0.1  BDR: 10.0.0.2  MTU: 0',
+    '   Dead timer due in 36 sec'
+  ],
+  ospfroute:[
+    'OSPF Process 1 with Router ID 10.0.0.1',
+    ' Routing Tables',
+    '',
+    ' Destination        Cost  Type       NextHop         AdvRouter',
+    ' 192.168.1.0/24     1     Transit    10.0.0.1        10.0.0.1',
+    ' 192.168.2.0/24     2     Stub       10.0.0.2        10.0.0.2'
+  ],
+  ospflsdb:[
+    'OSPF Process 1 with Router ID 10.0.0.1',
+    ' Link State Database',
+    '',
+    ' Area: 0.0.0.0',
+    ' Type    LinkState ID    AdvRouter       Age  Len   Sequence  Metric',
+    ' Router  10.0.0.1        10.0.0.1         32   48    80000003       0',
+    ' Router  10.0.0.2        10.0.0.2         28   48    80000004       0'
+  ],
+  ospfif:[
+    'Area: 0.0.0.0',
+    'Interface: 10.0.0.1 (GigabitEthernet0/0/0)',
+    ' Cost: 1       State: DR       Type: Broadcast    MTU: 1500',
+    ' Priority: 1   Hello: 10      Dead: 40           Wait: 40'
+  ],
+  isispeer:[
+    'System Id          Interface        Circuit Id         State HoldTime Type',
+    '0000.0000.0002     GE0/0/0          0000.0000.0002.01  Up    27s      L1L2'
+  ],
+  isisroute:[
+    'Route information for ISIS(1)',
+    '',
+    'ISIS(1) Level-1 Forwarding Table',
+    'IPV4 Destination     IntCost    ExtCost ExitInterface   NextHop',
+    '192.168.2.0/24       10         NULL    GE0/0/0         192.168.1.2'
+  ],
+  bgppeer:[
+    '  BGP local router ID : 10.0.0.1',
+    '  Local AS number : 100',
+    '  Total number of peers : 1',
+    '',
+    '  Peer        V  AS   MsgRcvd MsgSent OutQ Up/Down  State     PrefRcv',
+    '  10.0.0.2    4  200       12      12    0 00:05:31 Established     3'
+  ],
+  bgproute:[
+    '  BGP local router ID : 10.0.0.1',
+    '',
+    '  Total Number of Routes: 3',
+    '  Network            NextHop        Metric LocPrf Path/Ogn',
+    '  192.168.2.0/24     10.0.0.2            0       200 200i',
+    '  192.168.3.0/24     10.0.0.2            0       200 200i'
+  ],
+  vrrp:[
+    'VRRP Status Information',
+    '  GigabitEthernet0/0/0 | Virtual Router 1',
+    '    State : Master',
+    '    Virtual IP : 192.168.1.1',
+    '    Master IP : 192.168.1.2',
+    '    PriorityRun : 120   PriorityConfig : 120'
+  ],
+  ippool:[
+    'Pool-name      : 1',
+    '  Network      : 192.168.1.0 mask 255.255.255.0',
+    '  Gateway-list : 192.168.1.1',
+    '  DNS-list     : 114.114.114.114',
+    '  Lease        : 7 day(s)',
+    '  Used/Idle    : 12/242'
+  ],
+  lldp:[
+    'Local Intf     Neighbor Dev       Neighbor Intf    Exptime(s)',
+    'GE0/0/1        S5700-Core         GE0/0/24              118'
+  ],
+  cpu:['CPU Usage Stat. Cycle: 60 (Second)',
+       '  CPU Usage            : 8%   Max: 23%   Average: 6%'],
+  mem:['Memory utilization : 31%',
+       '  Total: 1024MB   Used: 318MB   Free: 706MB'],
+  users:[
+    '  UserIndex  UserName   HostAddress     LoginTime',
+    '  0          admin      10.1.1.100      2026-11-06 14:02:11',
+    '  1          hcip       10.1.1.101      2026-11-06 15:10:02'
+  ],
+  log:[
+    'Nov  6 2026 15:02:11 %%01IFNET/4/LINK_STATE(l)[0]:GigabitEthernet0/0/1: link up',
+    'Nov  6 2026 15:10:02 %%01SHELL/5/LOGIN(s)[1]:User hcip login from 10.1.1.101'
+  ],
+  ntp:['  clock status: synchronized',
+       '  clock stratum: 3',
+       '  reference clock ID: 10.1.1.1',
+       '  system time: 2026-11-06 15:40:22'],
+  snmp:['  SNMP version: v2c',
+        '  SNMP community: public'],
+  acl:['Basic ACL 3000, 2 rules',
+       "  Acl's step is 5",
+       '  rule 5 permit source 192.168.1.0 0.0.0.255',
+       '  rule 10 deny source 10.0.0.0 0.0.255.255'],
+  natsession:['NAT Session Table Information:',
+              '  Protocol  SrcAddr        Sport  DestAddr       Dport  TimeLeft',
+              '  TCP       192.168.1.100  51234  8.8.8.8        443    842'],
+  ospferror:['OSPF Process 1 with Router ID 10.0.0.1',
+             '  Error Statistics',
+             '  LSA: 0    Hello: 0    DD: 0    LSR: 0    LSU: 0'],
+  device:['Slot  Type            Online  Power    Register     Status   Role',
+          '1     S5700-28C-EI    Present PowerOn  Registered   Normal   Master'],
+  temp:['Temperature of board: 41 Celsius degree.',
+        'Temperature of optical module: 38 Celsius degree.'],
+  startup:['MainBoard:',
+           '  Config file: flash:/vrpcfg.zip',
+           '  Startup system software: flash:/s5700.cc'],
+  transceiver:['GigabitEthernet0/0/1 transceiver information:',
+               '  Vendor Name    : HUAWEI',
+               '  Temperature    : 38 C',
+               '  Voltage        : 3.29 V',
+               '  RX Power       : -2.31 dBm'],
+  mplslsp:['LSP Information: LDP LSP',
+           '----------------------------------------------------------------',
+           'In/Out Label   In/Out IF                   Vrf Name',
+           '3/NULL         -/-',
+           'NULL/3         -/GE0/0/1'],
+  pim:['PIM SM information:',
+       ' Neighbor      Interface     Uptime    Expires   DR-Priority',
+       ' 10.0.0.2      GE0/0/0       00:12:31  00:01:29  1'],
+  alarm:['Alarm ID   Alarm Name              Level   Time',
+         '0x8130001  BOARD_TEMP_ABNORMAL     Minor   2026-11-06 14:02:11'],
+  riprout:['Route Flags: R - relay, D - download to fib',
+           '------------------------------------------------------------------------------',
+           'Public routing table : RIP',
+           '         Routes : 2',
+           '',
+           'Destination/Mask    Proto   Cost   NextHop         Interface',
+           ' 192.168.2.0/24     RIP     1      10.0.0.2        GigabitEthernet0/0/0'],
+  qos:['Policy: p1',
+       '  Classifier: c1            Operator: OR',
+       '    Behavior: b1',
+       '      Remark DSCP 46',
+       '      Committed Access Rate: CIR 10000 kbps'],
+  dir:['Directory of flash:/',
+       '  Idx  Attr     Size(Byte)  Date        Time        Name',
+       '    0  -rw-        4,012  Nov 06 2026 14:02:11   vrpcfg.zip',
+       '    1  -rw-      105,224  Nov 06 2026 14:02:11   s5700.cc',
+       '1,024 KB total (912 KB free)'],
+  bfd:['BFD Session Information',
+       'LocalAddr      RemoteAddr     Type   State   Interface',
+       '10.0.0.1       10.0.0.2       Static Up      GE0/0/0'],
+  rrpp:['Smart Link group 1 information:',
+        '  Status        : Active',
+        '  Master port   : GigabitEthernet0/0/1',
+        '  Slave port    : GigabitEthernet0/0/2'],
+  saved:[
+    '!Software Version V200R019C10SPC500',
+    'sysname ' + 'Huawei',
+    '#',
+    'return'
+  ],
+  clock:['2026-11-06 15:40:22+08:00','Friday'],
+  save:['  The current configuration will be written to the device.',
+        '  Are you sure to continue? (y/n)[n]:y',
+        '  Info: Save the configuration successfully.'],
+  reboot:['  Info: The system is comparing the configuration, please wait.',
+          '  Warning: All the configuration will be saved to the configuration file for the next startup. Continue? (y/n)[n]:y'],
+  reset:['  Warning: The configuration will be erased to reconfigure. Continue? (y/n)[n]:y',
+         '  Info: Reset the saved configuration successfully.'],
+  ok:['  Info: The configuration takes effect successfully.'],
+  ping:['  PING 192.168.1.1: 56 data bytes, press CTRL_C to break',
+        '    Reply from 192.168.1.1: bytes=56 Sequence=1 ttl=255 time=1 ms',
+        '    Reply from 192.168.1.1: bytes=56 Sequence=2 ttl=255 time=1 ms',
+        '    --- 192.168.1.1 ping statistics ---',
+        '    2 packet(s) transmitted, 2 packet(s) received, 0.00% packet loss'],
+  tracert:['traceroute to 8.8.8.8 (8.8.8.8), max hops: 30, packet length: 40',
+           ' 1  192.168.1.1        1 ms',
+           ' 2  10.0.0.2           3 ms',
+           ' 3  8.8.8.8           12 ms']
+};
+
+function run(raw){
+  raw = raw.replace(/\s+$/, '');
+  if (!raw) return;
+  var res = VRP.analyze(state.view, raw);
+
+  if (res.err){
+    state.lastRun = { res:res, view:state.view, prompt:promptText(), raw:raw, err:true };
+    echoError(raw, res);
+    return;
+  }
+
+  echoColored(raw, res);
+
+  if (!res.action){
+    if (res.cur && res.cur.length){
+      var pad = promptText().length + raw.length + 1;
+      rawLine(' '.repeat(pad) + '<span class="caret">^</span>', '');
+      line('Error: Incomplete command found at \'^\' position.', 'e');
+      var hint = VRP.suggest(state.view, raw + ' ').items.slice(0, 6)
+        .map(function(i){ return i.kind === 'kw' ? i.text : '⟨' + i.label + '⟩'; });
+      if (hint.length) line('  ↳ 还缺参数或子命令，可选：' + hint.join('  '), 'd');
+      return;
+    }
+    line('% 命令已识别，但当前演示库未实现其执行结果', 'd');
+    return;
+  }
+
+  /* 用的是缩写就回显一次完整命令，方便对照记忆 */
+  var canon = VRP.canonical(res);
+  if (canon && canon.toLowerCase() !== raw.replace(/\s+/g, ' ').toLowerCase()){
+    line('· 已识别：' + canon, 'd');
+  }
+
+  var a = res.action;
+  state.lastRun = { res:res, view:state.view, prompt:promptText(), raw:raw };
+
+  if (a.view){
+    var patch = {};
+    var lastParam = res.path[res.path.length-1];
+    var val = lastParam ? (lastParam.display || lastParam.value) : '';
+    var target = a.view;
+    var meta = VRP.VIEWMETA[target] || {};
+    /* 视图名要取对应的那个参数，而不是路径里最后一个 token
+       （如 traffic classifier c1 operator or → 名字是 c1 不是 or） */
+    if (meta.bind){
+      var bv = null;
+      if (meta.bindType){
+        for (var bi=0;bi<res.path.length;bi++){
+          var pe = res.path[bi];
+          if (pe.kind === 'param' && pe.node.param === meta.bindType){ bv = pe.display || pe.value; break; }
+        }
+      }
+      patch[meta.bind] = (bv != null ? bv : val);
+    }
+    /* interface Eth-Trunk 1 进的是独立的 Eth-Trunk 视图 */
+    if (target === 'if' && /^Eth-Trunk/i.test(val)){
+      target = 'ethTrunk';
+      patch.trunkId = val.replace(/\D/g, '');
+      patch.ifName = val;
+    }
+    if (target === 'system') line('Enter system view, return user view with Ctrl+Z.', 'd');
+    enterView(target, patch);
+    if (target !== 'system') line('· 已进入' + VIEWNAME[target] + ' ' + promptText(), 'd');
+    return;
+  }
+  if (a.pop){ popView(); return; }
+  if (a.reset){ resetView(); return; }
+  if (a.print){
+    var key = a.print;
+    var out = OUT[key] || OUT.ok;
+    if (key === 'config'){
+      out = [
+        '!Software Version V200R019C10SPC500',
+        'sysname ' + state.sysname,
+        '#',
+        'interface ' + state.ifName,
+        ' ip address 192.168.1.254 255.255.255.0',
+        '#',
+        'ip route-static 0.0.0.0 0.0.0.0 192.168.1.1',
+        'return'
+      ];
+    }
+    if (key === 'version') { /* 固定 */ }
+    for (var i=0;i<out.length;i++) line(out[i], i === 0 && key === 'version' ? 'hdr' : 'o');
+    return;
+  }
+  line('% 已执行', 'd');
+}
+
+/* ---------- 提示与候选 ---------- */
+function refresh(){
+  PROMPT.textContent = promptText();
+  var raw = CMD.value;
+  var s = VRP.suggest(state.view, raw);
+  var ctx = s.ctx;
+
+  /* 视图徽标 */
+  $('#viewBadge').textContent = VIEWNAME[state.view] + ' ' + promptText();
+
+  /* 候选 chips */
+  CANDS.innerHTML = '';
+  var items = s.items.slice(0, 14);
+  items.forEach(function(it){
+    var b = document.createElement('button');
+    b.className = 'cand' + (it.kind === 'param' ? ' p' : '');
+    b.textContent = it.kind === 'kw' ? it.text : '⟨' + it.label + '⟩' + (it.role && it.role !== it.label ? ' · ' + it.role : '');
+    b.title = it.help || '';
+    b.onclick = function(){
+      tabReset();
+      if (it.kind === 'kw') setInput((s.base ? s.base + ' ' : '') + it.text + ' ');
+      else setInput((s.base ? s.base + ' ' : '') + (it.sample || '') + ' ');
+      CMD.focus();
+    };
+    CANDS.appendChild(b);
+  });
+
+  /* 提示条 */
+  HINT.innerHTML = '';
+  var seg = function(html){ var d = document.createElement('span'); d.innerHTML = html; HINT.appendChild(d); };
+
+  if (!raw.trim() && state.lastRun){
+    seg('正在查看上一条命令的拆解');
+    seg('<span class="kbd">↑</span> 可取回继续编辑');
+    renderDetail(null, state.lastRun.res, state.lastRun.view, state.lastRun.prompt);
+    return;
+  }
+
+  if (ctx.err){
+    seg('<span style="color:#cf0a2c">⚠ ' + VRP.esc(ctx.err.msg) + '</span>');
+    if (ctx.err.hint) seg(VRP.esc(ctx.err.hint));
+  } else if (raw.trim() && isRunnable(raw)){
+    seg('<span style="color:#1f9d55">✓ 命令完整，回车执行</span>');
+  } else if (s.params.length && !s.kws.length){
+    var p = s.params[0];
+    seg('下一个参数：<b>' + VRP.esc(p.label) + '</b>' + (p.role && p.role !== p.label ? ' · ' + VRP.esc(p.role) : ''));
+    seg('例：<b style="font-family:var(--mono)">' + VRP.esc(p.sample) + '</b>');
+    if (p.help) seg(VRP.esc(p.help));
+  } else if (s.kws.length){
+    seg('<span class="kbd">Tab</span> 补全 · 共 ' + s.kws.length + ' 个候选');
+    var uniq = s.kws.filter(function(k){ return k.text.toLowerCase().indexOf(s.prefix.toLowerCase()) === 0; });
+    if (uniq.length === 1) seg('按 Tab 得到 <b style="font-family:var(--mono)">' + s.kws[0].text + '</b>');
+    else if (s.prefix) seg('公共前缀 <b style="font-family:var(--mono)">' + VRP.commonPrefix(s.kws.map(function(k){ return k.text; })) + '</b>');
+  } else {
+    seg('输入命令，<span class="kbd">Tab</span> 补全，<span class="kbd">?</span> 查看帮助');
+  }
+
+  renderDetail(s, pickCtx(raw, s), state.view, null);
+}
+
+/* 详情优先用「完整输入」解析；若末尾正在输入非法值，则退回上一个 token 的解析结果，避免边打边报错 */
+function pickCtx(raw, s){
+  if (!raw.trim()) return s.ctx;
+  var full = VRP.analyze(state.view, raw);
+  if (!full.err && full.path.length >= s.ctx.path.length) return full;
+  return s.ctx;
+}
+
+/* 这条命令现在按回车能执行吗（走到了带 action 的节点） */
+function isRunnable(raw){
+  var r = VRP.analyze(state.view, raw);
+  return !r.err && !!r.action;
+}
+
+function setInput(v){
+  CMD.value = v;
+  refresh();
+}
+
+/* ---------- Tab ---------- */
+/* Tab：只补「当前这个词」，不往前推进。
+   多个候选时，连续按 Tab 在原位逐个切换（1/5 → 2/5 …），选中一个后按空格再进下一段。 */
+var tabCycle = null;
+
+function tabReset(){ tabCycle = null; }
+
+function tabComplete(){
+  var raw = CMD.value;
+  var s = VRP.suggest(state.view, raw);
+  var base = s.base, prefix = s.prefix;
+  var head = base ? base + ' ' : '';
+  var low = prefix.toLowerCase();
+
+  /* 1) 还在同一轮循环里：切到下一个候选（大小写不敏感） */
+  if (tabCycle && tabCycle.view === state.view && tabCycle.base === base &&
+      tabCycle.items.length > 1 && tabCycle.items[tabCycle.idx].toLowerCase() === low){
+    tabCycle.idx = (tabCycle.idx + 1) % tabCycle.items.length;
+    setInput(head + tabCycle.items[tabCycle.idx]);
+    cycleHint(tabCycle);
+    return;
+  }
+
+  /* 2) 参数位 */
+  if (!s.kws.length){
+    if (s.params.length){
+      var p = s.params[0];
+      /* 已经敲了这个参数的开头，就按前缀补全参数值（大小写不敏感）；
+         一个字没敲时不自动填，避免一路 Tab 把命令"填"完 */
+      var vals = !prefix ? [] : VRP.paramValues(p.node).filter(function(v){
+        return v && v.toLowerCase().indexOf(low) === 0;
+      });
+
+      if (vals.length === 1){
+        tabCycle = null;
+        setInput(head + vals[0] + ' ');
+        return;
+      }
+      if (vals.length > 1){
+        tabCycle = { view:state.view, base:base, items:vals, idx:0 };
+        setInput(head + vals[0]);
+        cycleHint(tabCycle);
+        return;
+      }
+      /* 没输入前缀、或前缀对不上任何样本 → 只提示，不乱填 */
+      line('· 此处需要参数：' + p.label
+           + (p.role && p.role !== p.label ? '（' + p.role + '）' : '')
+           + '，例 ' + (p.sample || '—'), 'd');
+      if (prefix){
+        line('  ↳ "' + prefix + '" 对不上 ' + p.label + ' 的取值格式，可直接输入', 'd');
+      } else {
+        line('  直接输入；或点下方 ⟨' + p.label + '⟩ 按钮填入示例值', 'd');
+      }
+      tabCycle = null;
+      return;
+    }
+    if (s.ctx.err){
+      line('  % ' + s.ctx.err.msg, 'e');
+      if (s.ctx.err.hint) line('  ↳ ' + s.ctx.err.hint, 'd');
+    } else {
+      line('· 当前位置没有可补全的命令', 'd');
+    }
+    tabCycle = null;
+    return;
+  }
+
+  /* 3) 输入的就是某个关键字本身（不分大小写）：直接补全，不要再和更长的词轮换 */
+  var exact = s.kws.filter(function(k){ return k.text.toLowerCase() === low; });
+  if (exact.length === 1){
+    tabCycle = null;
+    setInput(head + exact[0].text + ' ');
+    return;
+  }
+
+  /* 4) 只有一个候选：补全并留一个空格 */
+  if (s.kws.length === 1){
+    tabCycle = null;
+    setInput(head + s.kws[0].text + ' ');
+    return;
+  }
+
+  /* 5) 多个候选：先补公共前缀；公共前缀无收益时，从第一个开始逐个切换 */
+  var names = s.kws.map(function(k){ return k.text; });
+  var cp = VRP.commonPrefix(names);
+  if (cp.length > prefix.length && cp.toLowerCase() !== low){
+    tabCycle = null;
+    setInput(head + cp);
+    printCands(s.kws);
+    return;
+  }
+  /* 一个字都没输就要逐个切换，会变成瞎猜：候选过多时先列出来 */
+  if (!prefix && names.length > 6){
+    tabCycle = null;
+    printCands(s.kws);
+    line('  ↳ 先输入首字母，再按 Tab 可逐个筛选', 'd');
+    return;
+  }
+
+  tabCycle = { view:state.view, base:base, items:names, idx:0 };
+  setInput(head + names[0]);
+  cycleHint(tabCycle);
+}
+
+function cycleHint(t){
+  line('  ⟳ ' + (t.idx + 1) + '/' + t.items.length + '  ' + t.items[t.idx]
+       + '   （继续按 Tab 切换，空格确认）', 'd');
+}
+
+function printCands(items){
+  blank();
+  items.forEach(function(it){
+    var pad = '  ' + (it.kind === 'kw' ? it.text : '⟨' + it.label + '⟩');
+    line(pad.padEnd(34) + (it.help || ''), 'o');
+  });
+  blank();
+}
+
+/* VRP / eNSP 的 ? ：先把当前词补到公共前缀，再列候选，最后把命令行重画一遍 */
+function showHelp(){
+  var raw = CMD.value;
+  var s = VRP.suggest(state.view, raw);
+  var base = s.base, prefix = s.prefix;
+  var head = base ? base + ' ' : '';
+
+  /* 1) 补到公共前缀（VRP 的 ? 会顺手把能确定的字母补上） */
+  var names = s.kws.map(function(k){ return k.text; });
+  var cp = names.length ? VRP.commonPrefix(names) : '';
+  var filled = raw;
+  if (prefix && cp.length > prefix.length && cp.toLowerCase() !== prefix.toLowerCase()){
+    filled = head + cp;
+    setInput(filled);
+  }
+
+  /* 2) 回显：提示符 + 已输入内容 + ? */
+  rawLine('<span class="p">' + VRP.esc(promptText()) + '</span>' + VRP.esc(filled) + '<span class="caret">?</span>', '');
+  blank();
+
+  /* 3) 候选列表 */
+  var rows = [];
+  if (s.kws.length){
+    s.kws.forEach(function(k){ rows.push([k.text, k.help || '']); });
+  } else if (s.params.length){
+    s.params.forEach(function(p){
+      rows.push(['<' + p.label + '>', p.role && p.role !== p.label ? p.role + '  ' + (p.help || '') : (p.help || '')]);
+    });
+  }
+
+  /* 已经能回车执行时，补一个 <cr>，和 VRP 一样 */
+  var probe = VRP.analyze(state.view, filled);
+  if (probe.action && !probe.err) rows.push(['<cr>', '']);
+
+  if (!rows.length){
+    var ctx = VRP.analyze(state.view, raw);
+    if (ctx.err && ctx.err.kind === 'param'){
+      line('  % 这一位需要参数：' + (VRP.PARAMS[ctx.err.node.param] || {}).label
+           + (ctx.err.node.role ? '（' + ctx.err.node.role + '）' : '')
+           + '，例 ' + (ctx.err.node.sample || (VRP.PARAMS[ctx.err.node.param] || {}).sample || '—'), 'e');
+    } else if (ctx.err && ctx.err.kind === 'ambiguous'){
+      line('  % 命令不唯一：' + (ctx.err.expect || []).join('  '), 'e');
+    } else if (s.prefix){
+      line('  % 没有以 "' + s.prefix + '" 开头的命令', 'e');
+    } else {
+      line('  % 当前位置没有更多候选', 'd');
+    }
+    var all = (ctx.cur || []).filter(function(n){ return n.type === 'keyword' && n.text; });
+    if (all.length){
+      line('  当前位置可用：' + all.slice(0, 12).map(function(n){ return n.text; }).join('  ')
+           + (all.length > 12 ? '  …' : ''), 'd');
+    }
+    blank();
+    return;
+  }
+
+  rows.forEach(function(r){
+    line('  ' + r[0].padEnd(30) + r[1], 'o');
+  });
+  blank();
+
+  /* 4) 重画命令行，接着输入 */
+  rawLine('<span class="p">' + VRP.esc(promptText()) + '</span>' + VRP.esc(filled), '');
+}
+
+/* ---------- 详情面板 ---------- */
+function chipOf(param){
+  var P = VRP.PARAMS[param] || { label:param, color:'kw' };
+  return '<span class="chip c-' + (P.color || 'kw') + '">' + VRP.esc(P.label) + '</span>';
+}
+
+function renderDetail(s, ctx, viewId, leafPrompt){
+  var path = ctx.path;
+  var info = VRP.pathInfo(path);
+  var nodes = path.map(function(p){ return p.node; });
+
+  /* 命令模板：从 path 反推 + 当前节点剩余 */
+  var tmpl = '';
+  var chainNodes = [];
+  // 找到"当前命令"最长的完整前缀（有 action 或走到叶子）
+  var html = '';
+
+  if (!path.length){
+    DETAIL.innerHTML = errCard(ctx.err)
+      + '<div class="empty">在终端里输入命令，这里会实时拆解每一个参数的<b>类型</b>和<b>语义</b>。<br><br>试试：<code style="font-family:var(--mono)">int g 0/0/0</code> 回车，再输入 <code style="font-family:var(--mono)">ip add 192.168.1.1 255.255.255.0</code>。</div>';
+    return;
+  }
+
+  /* 0) 这条命令在做什么：用实参拼出来的精确描述，不是语法模板的通用释义 */
+  if (!ctx.err){
+    var gist = gistOf(ctx, leafPrompt || promptText());
+    if (gist) html += '<div class="gist"><span>这条命令</span>' + VRP.esc(gist) + '</div>';
+  }
+
+  /* 1) 分层上下文 */
+  var vchain = VRP.viewChain(viewId);
+  var chainHtml = '<div class="path">';
+  for (var i=0;i<vchain.length;i++){
+    var vid = vchain[i], v = VRP.VIEWS[vid];
+    var leaf = (i === vchain.length - 1);
+    var label = leaf && leafPrompt ? leafPrompt :
+                vid === 'user' ? '<' + state.sysname + '>' :
+                vid === 'system' ? '[' + state.sysname + ']' : promptFor(vid);
+    chainHtml += '<div><span class="pt">' + VRP.esc(label) + '</span> <span class="pv">' + VRP.esc(VIEWNAME[vid]) + '</span></div>';
+    if (v.enter && vid !== 'user'){
+      var prev = VRP.VIEWS[v.enter.from];
+      chainHtml += '<div class="arrow">└ ' + VRP.esc(v.enter.sample) + '</div>';
+    }
+  }
+  chainHtml += '</div>';
+
+  /* 2) 当前输入参数树 */
+  var tplHtml = '<div class="tpl">';
+  for (var t=0;t<path.length;t++){
+    var tp = path[t];
+    if (tp.kind === 'keyword'){
+      tplHtml += '<span class="tp-k">' + VRP.esc(tp.node.text) + '</span> ';
+    } else {
+      var TP = VRP.PARAMS[tp.node.param] || { color:'kw', label:tp.node.param };
+      tplHtml += '<span class="tp-p c-' + (TP.color || 'kw') + '">' + VRP.esc(tp.node.role || TP.label) + '</span> ';
+    }
+  }
+  tplHtml += '</div><div style="font-size:11px;color:#8b95a1;margin-top:2px">尖括号 = 参数占位，按上表填真实值</div>';
+
+  var tree = '<div class="tree">';
+  var indent = 0;
+  for (var j=0;j<path.length;j++){
+    var p = path[j];
+    var bar = j === path.length-1 ? '└─' : '├─';
+    var cls = p.kind === 'keyword' ? 'c-kw' : ('c-' + ((VRP.PARAMS[p.node.param]||{}).color || 'kw'));
+    var lbl = p.kind === 'keyword' ? '关键字' : (VRP.PARAMS[p.node.param]||{}).label;
+    var role = p.kind === 'param' && p.node.role ? p.node.role : '';
+    tree += '<div class="trow">'
+         + '<span class="bar">' + '   '.repeat(Math.max(0,j-1)) + (j ? bar : '') + '</span>'
+         + '<span class="val">' + VRP.esc(p.display) + '</span>'
+         + '<span class="chip ' + cls + '">' + VRP.esc(lbl) + '</span>'
+         + (role && role !== lbl ? '<span class="cmt">' + VRP.esc(role) + '</span>' : '')
+         + (p.note ? '<span class="cmt">' + VRP.esc(p.note) + '</span>' : '')
+         + '</div>';
+  }
+  tree += '</div>';
+
+  if (ctx.err) html += errCard(ctx.err);
+  html += '<div class="sec"><h4>命令模板</h4>' + tplHtml + '</div>';
+  html += '<div class="sec"><h4>分层上下文</h4>' + chainHtml + '</div>';  html += '<div class="sec"><h4>本次输入的参数树</h4>' + tree + '</div>';
+
+  /* 3) 参数说明表 */
+  var rows = '';
+  for (var k=0;k<path.length;k++){
+    var q = path[k];
+    if (q.kind !== 'param') continue;
+    var P = VRP.PARAMS[q.node.param] || {};
+    rows += '<tr><td>' + VRP.esc(q.node.role || P.label) + '</td>'
+          + '<td>' + chipOf(q.node.param) + '</td>'
+          + '<td class="d">' + VRP.esc(q.node.help || P.hint || '') + '</td></tr>';
+  }
+  if (rows) html += '<div class="sec"><h4>参数类型说明</h4><table class="pt-t"><tr><th>语义</th><th>类型</th><th>说明</th></tr>' + rows + '</table></div>';
+
+  /* 4) 释义 */
+  if (info){
+    var box = '<div class="note-box">' + VRP.esc(info.brief || '');
+    if (info.pitfall && info.pitfall.length){
+      box += '<ul>' + info.pitfall.map(function(x){ return '<li>' + VRP.esc(x) + '</li>'; }).join('') + '</ul>';
+    }
+    box += '</div>';
+    html += '<div class="sec"><h4>要点与易错</h4>' + box + '</div>';
+
+    if (info.example && info.example.length){
+      html += '<div class="sec"><h4>示例（点击填入）</h4>' + info.example.map(function(x){
+        return '<div class="ex" data-fill="' + VRP.esc(x) + '">' + VRP.esc(x) + '<span class="c">点击填入终端</span></div>';
+      }).join('') + '</div>';
+    }
+  }
+
+  html = '<div class="dtool"><button class="btn pri" id="btnSnap">＋ 快速记下（视图 + 命令 + 注释）</button>'
+       + '<span>Ctrl + Enter</span></div>' + html;
+
+  DETAIL.innerHTML = html;
+
+  var snap = DETAIL.querySelector('#btnSnap');
+  if (snap) snap.onclick = function(){ insertCommand(); };
+
+  DETAIL.querySelectorAll('[data-fill]').forEach(function(el){
+    el.onclick = function(){ setInput(el.getAttribute('data-fill')); CMD.focus(); };
+  });
+}
+
+function promptFor(vid){ return fillTpl(vid); }
+
+/* 校验失败卡片：直接告诉你这一位该填什么类型 */
+function errCard(e){
+  if (!e) return '';
+  var h = '<div class="sec"><h4>校验未通过</h4><div class="note-box bad">';
+  /* 大字给中文原因，小字保留 eNSP/VRP 的原话 */
+  h += '<b>' + VRP.esc(e.detail || e.msg) + '</b>';
+  if (e.fix) h += '<br>↳ ' + VRP.esc(e.fix);
+  h += '<div class="vrpline">Error: ' + VRP.esc(e.msg) + '</div>';
+  if (e.node){
+    var P = VRP.PARAMS[e.node.param] || {};
+    h += '<div style="margin-top:6px">该位置应为 ' + chipOf(e.node.param)
+      + (e.node.role && e.node.role !== (VRP.PARAMS[e.node.param] || {}).label
+          ? ' <span style="font-size:11px;color:#8b95a1">' + VRP.esc(e.node.role) + '</span>' : '')
+      + ' ，例：<code>' + VRP.esc(e.node.sample || P.sample || '') + '</code></div>';
+  }
+  if (e.expect && e.expect.length){
+    h += '<div style="margin-top:6px">此处可选：' + e.expect.map(function(x){
+      return '<code>' + VRP.esc(x) + '</code>';
+    }).join(' ') + '</div>';
+  }
+  h += '</div></div>';
+  return h;
+}
+
+/* ---------- 笔记 ---------- */
+var notes = [], curNote = 0;
+
+function loadNotes(){
+  try {
+    var s = localStorage.getItem('hcip-notes-v1');
+    if (s) notes = JSON.parse(s);
+  } catch(e){}
+  if (!notes || !notes.length){
+    notes = [{ id:1, title:'命令速记', body:'## HCIP 命令速记\n\n' }];
+  }
+}
+function saveNotes(){
+  try { localStorage.setItem('hcip-notes-v1', JSON.stringify(notes)); } catch(e){}
+}
+function renderNotes(){
+  var box = $('#noteList');
+  box.innerHTML = '';
+  notes.forEach(function(n, i){
+    var d = document.createElement('div');
+    d.className = 'ni' + (i === curNote ? ' on' : '');
+    d.textContent = n.title || '未命名';
+    d.title = n.title;
+    d.onclick = function(){
+      curNote = i;
+      $('#noteBody').value = notes[i].body;
+      renderNotes();
+    };
+    box.appendChild(d);
+  });
+  $('#noteBody').value = notes[curNote] ? notes[curNote].body : '';
+}
+
+/* 快速笔记：只记三样东西 —— <视图> 命令 / 注释 */
+/*  注释不是照抄命令的通用说明，而是按「关键字 + 实参」拼出这条命令到底做了什么：
+      interface LoopBack0        → 进入环回接口0的配置视图
+      ip address 10.1.1.1 24     → 给接口配IP地址10.1.1.1/24（掩码 255.255.255.0）
+      ip route-static ... 10.1.1.2 → 静态路由：去往192.168.2.0/24，下一跳10.1.1.2  */
+
+/* 接口名 → 中文描述 */
+var IFACE_KIND = [
+  [/^loopback$/i,        function(n){ return '环回接口' + n; }],
+  [/^vlanif$/i,          function(n){ return 'VLAN' + n + '的三层接口（Vlanif' + n + '）'; }],
+  [/^eth-trunk$/i,       function(n){ return '链路聚合口Eth-Trunk' + n; }],
+  [/^gigabitethernet$/i, function(n){ return '千兆以太网接口' + n; }],
+  [/^(?:xgigabitethernet|10ge)$/i, function(n){ return '万兆以太网接口' + n; }],
+  [/^(?:25ge|40ge|100ge)$/i,       function(n){ return '高速以太网接口' + n; }],
+  [/^tunnel$/i,          function(n){ return '隧道接口' + n; }],
+  [/^nve$/i,             function(n){ return 'NVE接口' + n; }],
+  [/^meth$/i,            function(n){ return '管理接口MEth' + n; }],
+  [/^serial$/i,          function(n){ return '串口' + n; }],
+  [/^null$/i,            function(n){ return '空接口NULL' + n + '（丢弃报文）'; }]
+];
+
+function ifaceDesc(v){
+  var s = String(v || '').trim();
+  var m = /^((?:\d+)?[A-Za-z][A-Za-z-]*)([\d\/\.:]*)$/.exec(s);
+  if (!m) return '接口' + s;
+  for (var i = 0; i < IFACE_KIND.length; i++){
+    if (IFACE_KIND[i][0].test(m[1])) return IFACE_KIND[i][1](m[2]);
+  }
+  return '接口' + s;
+}
+
+/* 点分十进制 → 1 的个数；掩码取它，反掩码用 32 减 */
+function ipOnes(v){
+  if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(String(v || ''))) return -1;
+  var n = 0;
+  String(v).split('.').forEach(function(o){
+    var b = (+o).toString(2);
+    while (b.length < 8) b = '0' + b;
+    n += (b.match(/1/g) || []).length;
+  });
+  return n;
+}
+function maskToPrefix(m){ return ipOnes(m); }
+function wcToPrefix(w){ var o = ipOnes(w); return o < 0 ? -1 : 32 - o; }
+
+/* 按角色（不是按位置）取实参 */
+function argOf(path, role){
+  for (var i = 0; i < path.length; i++){
+    var p = path[i];
+    if (p.kind === 'param' && p.node.role === role) return p.display || p.value;
+  }
+  return '';
+}
+function argsOf(path, role){
+  var out = [];
+  path.forEach(function(p){
+    if (p.kind === 'param' && p.node.role === role) out.push(p.display || p.value);
+  });
+  return out;
+}
+
+/* 一条命令的精确注释；命中不了就走通用说明 */
+function preciseNote(path, sig, prm){
+  if (sig === 'interface'){
+    var nm = argOf(path, '接口名');
+    if (nm) return '进入' + ifaceDesc(nm) + '的配置视图';
+  }
+  if (sig === 'vlan'){
+    var vid = argOf(path, 'VLAN ID');
+    if (vid) return '创建并进入VLAN' + vid + '的配置视图';
+  }
+  if (sig === 'vlan batch'){
+    var vs = argsOf(path, 'VLAN列表');
+    if (vs.length) return '批量创建VLAN ' + vs.join(' ') + '（共' + vs.length + '个）';
+  }
+  if (sig === 'undo vlan'){
+    var uv = argOf(path, 'VLAN ID');
+    if (uv) return '删除VLAN' + uv + '，原属端口退回缺省VLAN';
+  }
+  if (sig === 'ip address'){
+    var a = argOf(path, '接口IP地址'), mk = argOf(path, '子网掩码');
+    var pf = maskToPrefix(mk);
+    if (a) return '给接口配IP地址' + a + (pf >= 0 ? '/' + pf : '')
+                 + (mk && pf >= 0 ? '（掩码 ' + mk + '）' : '');
+  }
+  if (sig === 'ip route-static'){
+    var d = argOf(path, '目的网段'), m = argOf(path, '子网掩码');
+    var nh = argOf(path, '下一跳IP'), oi = argOf(path, '出接口');
+    var pf2 = maskToPrefix(m);
+    var head = (d === '0.0.0.0' && pf2 === 0)
+             ? '默认路由'
+             : ('静态路由：去往' + d + (pf2 >= 0 ? '/' + pf2 : ''));
+    var tail = [];
+    if (oi) tail.push('出接口' + oi);
+    if (nh) tail.push('下一跳' + nh);
+    if (tail.length) return head + (head.indexOf('：') >= 0 ? '，' : '：') + tail.join('，');
+    return head;
+  }
+  if (sig === 'network'){
+    var ni = argOf(path, '目的网段'), wc = argOf(path, '反掩码');
+    if (ni && wc){
+      var wp = wcToPrefix(wc);
+      var area = /-area-([^\]\s]+)\]/.exec(prm || '');
+      return '把网段' + ni + (wp >= 0 ? '/' + wp : '') + '宣告进OSPF'
+           + (area ? '区域' + area[1] : '') + '（用反掩码 ' + wc + '）';
+    }
+    var bm = argOf(path, '子网掩码');
+    if (ni && bm) return '宣告网段' + ni + '（掩码 ' + bm + '）';
+  }
+  if (sig === 'acl'){
+    var an = argOf(path, 'ACL编号');
+    if (an){
+      var n = +an;
+      var t = (n >= 2000 && n <= 2999) ? '基本ACL' :
+              (n >= 3000 && n <= 3999) ? '高级ACL' :
+              (n >= 4000 && n <= 4999) ? '二层ACL' : 'ACL';
+      return '创建并进入' + t + ' ' + an;
+    }
+  }
+  if (sig === 'rule'){
+    var rn = argOf(path, '规则编号'), act = argOf(path, '动作');
+    var src = '', srcWc = '', dst = '', dstWc = '', mode = '';
+    path.forEach(function(p){
+      if (p.kind === 'keyword'){
+        if (p.node.text === 'source' || p.node.text === 'destination') mode = p.node.text;
+        return;
+      }
+      var role = p.node.role;
+      if (role === '源网段地址') src = p.display || p.value;
+      else if (role === '目的网段地址') dst = p.display || p.value;
+      else if (role === '反掩码'){
+        if (mode === 'destination') dstWc = p.value; else srcWc = p.value;
+      }
+    });
+    var seg = [];
+    var sp = wcToPrefix(srcWc), dp = wcToPrefix(dstWc);
+    if (src) seg.push('源' + src + (sp >= 0 ? '/' + sp : ''));
+    if (dst) seg.push('目的' + dst + (dp >= 0 ? '/' + dp : ''));
+    if (rn) return 'ACL规则' + rn + '：'
+                + (act === 'permit' ? '允许' : act === 'deny' ? '拒绝' : (act || ''))
+                + (seg.length ? ' ' + seg.join('，') : '');
+  }
+  if (sig === 'sysname'){
+    var sn = argOf(path, '设备名');
+    if (sn) return '把设备名改为 ' + sn;
+  }
+  if (sig === 'description'){
+    var de = argOf(path, '描述文本');
+    if (de) return '接口描述设为“' + de + '”，用于标识对端或用途';
+  }
+  if (sig === 'port link-type'){
+    var lt = argOf(path, '链路类型');
+    if (lt){
+      var ltd = lt === 'access' ? '接终端/服务器，只属于一个VLAN'
+              : lt === 'trunk'  ? '接交换机，可透传多个VLAN'
+              : lt === 'hybrid' ? '可按 tagged/untagged 放通多个VLAN'
+              : lt === 'dot1q-tunnel' ? 'QinQ，为报文再打一层外层VLAN' : '';
+      return '接口链路类型设为 ' + lt + (ltd ? '（' + ltd + '）' : '');
+    }
+  }
+  if (sig === 'port default vlan'){
+    var pv = argOf(path, 'VLAN ID');
+    if (pv) return '接口PVID设为VLAN' + pv + '（不带标签的帧归入该VLAN）';
+  }
+  if (sig === 'port trunk allow-pass vlan'){
+    var tv = argsOf(path, 'VLAN列表');
+    if (tv.length) return 'Trunk口放通VLAN ' + tv.join(' ');
+  }
+  if (sig === 'ospf'){
+    var op = argOf(path, '进程号');
+    if (op) return '启动OSPF进程' + op + '并进入其视图';
+  }
+  if (sig === 'area'){
+    var aid = argOf(path, '区域ID');
+    if (aid) return '进入OSPF区域' + aid
+                 + (aid === '0' || aid === '0.0.0.0' ? '（骨干区域）' : '') + '的视图';
+  }
+  if (sig === 'bgp'){
+    var as = argOf(path, 'AS号');
+    if (as) return '启动BGP，本地AS号 ' + as;
+  }
+  if (sig === 'isis'){
+    var isp = argOf(path, '进程号');
+    if (isp) return '启动IS-IS进程' + isp + '并进入其视图';
+  }
+  if (sig === 'ip pool'){
+    var pn = argOf(path, '地址池名称');
+    if (pn) return '创建全局IP地址池 ' + pn;
+  }
+  if (sig === 'ipv6 address'){
+    var v6 = argOf(path, '接口IPv6地址'), pl = argOf(path, '前缀长度');
+    if (v6) return '给接口配IPv6地址' + v6 + (pl ? '/' + pl : '');
+  }
+  if (sig === 'peer'){
+    var pb = argOf(path, '邻居IP'), pa = argOf(path, '对端AS号');
+    if (pb && pa) return '指定BGP邻居' + pb + '，对端AS号 ' + pa;
+  }
+  if (sig === 'vrrp vrid'){
+    var vg = argOf(path, '备份组号'), vip = argOf(path, '虚拟IP地址');
+    if (vg && vip) return 'VRRP备份组' + vg + '的虚拟IP设为' + vip + '（作为终端网关）';
+  }
+  if (sig === 'stp priority'){
+    var spri = argOf(path, '桥优先级');
+    if (spri) return '桥优先级设为' + spri + '（4096 的倍数，越小越优先当根桥）';
+  }
+  if (sig === 'port-security max-mac-num'){
+    var mm = argOf(path, '最大MAC数');
+    if (mm) return '端口最多学习' + mm + '个MAC地址，超出按保护动作处理';
+  }
+  if (sig === 'display current-configuration interface'){
+    var di = argOf(path, '接口名');
+    if (di) return '查看' + ifaceDesc(di) + '的当前配置';
+  }
+  if (sig === 'gateway-list'){
+    var gw = argOf(path, '网关地址');
+    if (gw) return '下发给客户端的默认网关：' + gw;
+  }
+  if (sig === 'dns-list'){
+    var dn = argOf(path, 'DNS服务器地址');
+    if (dn) return '下发给客户端的DNS服务器：' + dn;
+  }
+  if (sig === 'lease day'){
+    var ld = argOf(path, '租期天数');
+    if (ld) return '地址租期设为' + ld + '天';
+  }
+  if (sig === 'quit')   return '返回上一级视图';
+  if (sig === 'return') return '直接退回用户视图';
+  if (sig === 'shutdown')      return '关闭接口（管理down，物理状态变 down）';
+  if (sig === 'undo shutdown') return '重新开启接口';
+  return '';
+}
+
+/* 命令骨架 = 参数之前的连续关键字；rule 5 permit source … 的骨架是 rule，而不是 rule source */
+function gistOf(res, prm){
+  var path = (res && res.path) || [];
+  var stem = [];
+  for (var i = 0; i < path.length; i++){
+    if (path[i].kind === 'param') break;
+    stem.push(path[i].node.text);
+  }
+  return preciseNote(path, stem.join(' '), prm);
+}
+
+function annotate(res, view, prm){
+  var path = res.path || [];
+  var note = gistOf(res, prm);
+  if (!note){
+    var leaf = path[path.length - 1].node;
+    var info = VRP.pathInfo(path);
+    note = (info && info.brief) ? info.brief : (leaf.cmd || leaf.help || '');
+    note = String(note).split('。')[0];
+  }
+  note = String(note || '').replace(/\s+/g, ' ').trim();
+  if (note.length > 60) note = note.slice(0, 60) + '…';
+  return note || '（暂无注释）';
+}
+
+function noteEntry(){
+  var typing = CMD.value.trim();
+  var res = typing ? VRP.analyze(state.view, CMD.value) : (state.lastRun ? state.lastRun.res : null);
+  var prm = typing ? promptText() : (state.lastRun ? state.lastRun.prompt : '');
+  var raw = typing ? CMD.value.trim() : (state.lastRun ? state.lastRun.raw : '');
+  if (!res || !res.path.length || res.err) return null;
+
+  /* 笔记里落的是完整命令：关键字还原成规范拼写，接口名/掩码等也取规范值 */
+  var cmd = VRP.canonical(res) || (raw || res.tokens.join(' ')).replace(/\s+/g, ' ');
+  var note = annotate(res, typing ? state.view : (state.lastRun ? state.lastRun.view : state.view), prm);
+  return { cmd:cmd, note:note, text:prm + ' ' + cmd + '\n// ' + note };
+}
+
+/* 把若干条 entry 追加到当前笔记 */
+function appendEntries(entries){
+  if (!entries.length) return;
+  var note = notes[curNote];
+  var body = (note.body || '').replace(/\s+$/, '');
+  var block = entries.map(function(e){ return e.text; }).join('\n\n');
+  note.body = body + (body ? '\n\n' : '') + block + '\n';
+  if (!body || /^新笔记/.test(note.title || '')) note.title = entries[0].cmd.slice(0, 20);
+  saveNotes();
+  renderNotes();
+}
+
+function insertCommand(){
+  var e = noteEntry();
+  if (!e){
+    line('· 先输入或执行一条有效命令，再快速记下', 'd');
+    return;
+  }
+  appendEntries([e]);
+  line('· 已记下  ' + e.text.replace('\n', '   // '), 'g');
+}
+
+/* ---------- 框选批量记笔记 ---------- */
+/* 逐行还原选区里的命令，不再依赖回显行有没有打 data-cmd 标记：
+   只要那行还在屏幕上，缩写、报错、没打标记的，都能一起记下来。 */
+
+var PROMPT_RE = /^(<[^>\n]+>|\[[^\]\n]+\])\s*(.*)$/;
+var _vpCache = {};
+
+function escRe(s){ return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+/* 提示符 → 视图：[Huawei-ospf-1-area-0.0.0.0] → ospfArea。
+   用各视图的 tpl 生成正则，取「字面量最多」的那个，避免 [Huawei-xxx] 被系统视图抢走。 */
+function viewFromPrompt(pmt){
+  if (Object.prototype.hasOwnProperty.call(_vpCache, pmt)) return _vpCache[pmt];
+  var best = null, bestScore = -1;
+  Object.keys(VRP.VIEWMETA).forEach(function(id){
+    var lits = VRP.VIEWMETA[id].tpl.split(/\{\w+\}/);
+    var re;
+    try { re = new RegExp('^' + lits.map(escRe).join('[^\\[\\]]+') + '$'); } catch(e){ return; }
+    if (!re.test(pmt)) return;
+    var score = lits.join('').length;
+    if (score > bestScore){ bestScore = score; best = id; }
+  });
+  _vpCache[pmt] = best;
+  return best;
+}
+
+function clipNote(s){
+  s = String(s || '').replace(/\s+/g, ' ').trim();
+  return s.length > 60 ? s.slice(0, 60) + '…' : s;
+}
+
+/* 一行 → 一条记录；不像命令行就返回 null */
+function lineToEntry(el, fallbackView){
+  var text = (el.textContent || '').replace(/\u00a0/g, ' ');
+  if (!text.trim()) return null;
+  var m = PROMPT_RE.exec(text.trim());
+  var prm = m ? m[1] : '';
+  var rawCmd = (el.dataset && el.dataset.cmd) ? el.dataset.cmd : (m ? m[2] : text).trim();
+  var cmd = rawCmd.replace(/\s+/g, ' ').trim();
+  if (!cmd) return null;
+  if (/\?$/.test(cmd)) return null;                          /* ? 查询不算命令 */
+  if (/^(?:·|↳|%|\^|Error:|Warning:|Info:)/.test(cmd)) return null;
+
+  var view = (el.dataset && el.dataset.view) || (prm ? viewFromPrompt(prm) : '')
+          || fallbackView || state.view;
+  var res = VRP.analyze(view, cmd);
+  if (!res.path.length) return null;
+
+  var bad = !!res.err;
+  /* 没有提示符、也没有回显标记的行，只有能完整解析才收，
+     避免把路由表、help 列表这类输出记成命令 */
+  if (bad && !prm && !(el.dataset && el.dataset.cmd)) return null;
+
+  var shown = prm || promptFor(view);
+  var canon = bad ? cmd : (VRP.canonical(res) || cmd);
+  var note;
+  if (bad){
+    var e = res.err;
+    var why = clipNote(e.detail || e.msg || '');
+    var extra = e.hint ? clipNote(String(e.hint).split('；')[0]) : '';
+    note = '✗ 当时未通过校验：' + why
+         + (extra && extra !== why && why.indexOf(extra) < 0 ? '（' + extra + '）' : '');
+  } else {
+    note = annotate(res, view, prm);
+  }
+  return { view:view, bad:bad, shown:shown, cmd:canon, note:note,
+           text:shown + ' ' + canon + '\n// ' + note };
+}
+
+/* 选区里的所有命令行，保持屏幕顺序 */
+function selectionEntries(){
+  var sel = window.getSelection();
+  if (!sel || !sel.rangeCount || sel.isCollapsed) return { entries:[], bad:0 };
+  var range = sel.getRangeAt(0);
+  if (!T.contains(range.commonAncestorContainer)) return { entries:[], bad:0 };
+
+  var els = [];
+  T.querySelectorAll('.l').forEach(function(el){
+    var hit = false;
+    try { hit = range.intersectsNode(el); } catch(e){}
+    if (hit) els.push(el);
+  });
+  /* 选区里有回显行时，输出行一律不当命令；只选纯文本时才逐行试解析 */
+  var hasEcho = els.some(function(el){
+    return el.querySelector('.p') || (el.dataset && el.dataset.cmd);
+  });
+
+  var entries = [], bad = 0, lastView = '';
+  els.forEach(function(el){
+    var echo = el.querySelector('.p') || (el.dataset && el.dataset.cmd);
+    if (hasEcho && !echo) return;
+    var e = lineToEntry(el, lastView);
+    if (!e) return;
+    entries.push(e);
+    if (e.bad) bad++;
+    lastView = e.view;
+  });
+  return { entries: entries, bad: bad };
+}
+
+var selBtn = null, selCache = null, selCacheAt = 0;
+
+function ensureSelBtn(){
+  if (selBtn) return selBtn;
+  selBtn = document.createElement('button');
+  selBtn.className = 'selbtn';
+  selBtn.onmousedown = function(ev){ ev.preventDefault(); ev.stopPropagation(); };
+  selBtn.onclick = function(ev){ ev.preventDefault(); ev.stopPropagation(); recordSelected(); };
+  document.body.appendChild(selBtn);
+  return selBtn;
+}
+function hideSelBtn(){ if (selBtn) selBtn.style.display = 'none'; }
+function showSelBtn(n, x, y){
+  var b = ensureSelBtn();
+  b.textContent = n === 1 ? '＋ 记下这条命令' : ('＋ 记下选中的 ' + n + ' 条命令');
+  selBtnAt = Date.now();
+  b.style.display = 'block';
+  b.style.left = Math.max(8, x) + 'px';
+  b.style.top = Math.max(8, y) + 'px';
+}
+var selBtnAt = 0;
+
+/* 标题栏按钮跟着选区变化：有 N 条就点亮成「记下框选 (N)」 */
+function syncSelBtn(n){
+  var b = document.getElementById('btnSelNote');
+  if (!b) return;
+  b.textContent = n ? '记下框选 (' + n + ')' : '记下框选';
+  b.className = 'hbtn' + (n ? ' on' : '');
+}
+
+function selRect(){
+  var sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return null;
+  var rs = sel.getRangeAt(0).getClientRects();
+  return (rs && rs.length) ? rs[rs.length - 1] : sel.getRangeAt(0).getBoundingClientRect();
+}
+
+function refreshSel(){
+  var r = selectionEntries();
+  selCache = r; selCacheAt = Date.now();
+  syncSelBtn(r.entries.length);
+  if (!r.entries.length){ hideSelBtn(); return; }
+  var rect = selRect();
+  var x = rect ? rect.left : 240;
+  var y = rect ? rect.bottom + 8 : 240;
+  showSelBtn(r.entries.length,
+    Math.min(Math.max(8, x), window.innerWidth - 240),
+    Math.min(Math.max(8, y), window.innerHeight - 46));
+}
+
+function recordSelected(){
+  var r = selectionEntries();
+  /* 点标题栏按钮时焦点转移可能把选区收掉，用刚才缓存的结果兜底 */
+  if (!r.entries.length && selCache && selCache.entries.length &&
+      Date.now() - selCacheAt < 10000) r = selCache;
+  var entries = r.entries;
+
+  if (!entries.length){
+    line('· 先在终端里左键框选要记的命令行（从提示符开始更准），再点「记下框选」', 'd');
+    hideSelBtn();
+    return;
+  }
+  appendEntries(entries);
+  line('· 已记下 ' + entries.length + ' 条命令'
+       + (r.bad ? '（其中 ' + r.bad + ' 条当时校验未通过，注释里已标出）' : ''), 'g');
+  entries.forEach(function(e){ line('    ' + e.shown + ' ' + e.cmd, 'd'); });
+  hideSelBtn();
+  syncSelBtn(0);
+  selCache = null;
+  var sel = window.getSelection(); if (sel) sel.removeAllRanges();
+}
+
+/* ---------- 命令库 ---------- */
+var LIB = [];
+function renderLib(kw){
+  var q = (kw || '').toLowerCase();
+  var list = LIB.filter(function(x){
+    return !q
+      || x.syntax.toLowerCase().indexOf(q) >= 0
+      || (x.brief || '').toLowerCase().indexOf(q) >= 0
+      || x.view.toLowerCase().indexOf(q) >= 0
+      || VIEWNAME[x.view].indexOf(q) >= 0;
+  });
+
+  var html = '';
+  if (!list.length){
+    html = '<div class="empty">没有匹配的命令</div>';
+  } else {
+    html = '<div class="libcnt">' + (q ? '匹配 ' + list.length + ' 条' : '共 ' + list.length + ' 条命令')
+         + ' · 点击可填入终端</div>';
+    Object.keys(VRP.VIEWS).forEach(function(v){
+      var g = list.filter(function(x){ return x.view === v; });
+      if (!g.length) return;
+      html += '<div class="libgrp">' + VIEWNAME[v] + ' · ' + g.length + '</div>';
+      g.forEach(function(x){
+        html += '<div class="libitem" data-fill="' + VRP.esc(x.sample) + '" data-view="' + x.view + '">'
+          + '<div class="s">' + VRP.esc(x.syntax) + '</div>'
+          + (x.brief ? '<div class="b">' + VRP.esc(x.brief) + '</div>' : '')
+          + '</div>';
+      });
+    });
+  }
+  $('#libList').innerHTML = html;
+
+  $('#libList').querySelectorAll('.libitem').forEach(function(el){
+    el.onclick = function(){
+      setInput(el.getAttribute('data-fill'));
+      CMD.focus();
+    };
+  });
+}
+
+/* ---------- 初始化 ---------- */
+function boot(){
+  line('Huawei Versatile Routing Platform Software', 'hdr');
+  line('VRP (R) software, Version 8.180  ——  HCIP 命令训练场模拟环境', 'hdr');
+  line('纯前端模拟器 · 不连接任何设备 · 回显仅用于学习对照', 'd');
+  blank();
+  line('  Tab   补全关键字（唯一时直接补全，多个时列出候选）', 'd');
+  line('  ?     列出当前位置所有可用命令', 'd');
+  line('  ↑ ↓   翻历史命令', 'd');
+  line('  框选  选中多行命令，一次全部记进笔记', 'd');
+  blank();
+  line('试试输入  sys  按 Tab，或  int g 0/0/0  回车。', 'g');
+  blank();
+
+  loadNotes();
+  renderNotes();
+  LIB = VRP.enumerate();
+  renderLib('');
+  var stat = $('#dbStat');
+  if (stat) stat.textContent = '当前内置 ' + Object.keys(VRP.VIEWS).length + ' 个视图 · ' + LIB.length + ' 条命令';
+
+  CMD.addEventListener('input', function(){ tabReset(); refresh(); });
+  CMD.addEventListener('keydown', function(e){
+    if (e.key === 'Tab'){ e.preventDefault(); tabComplete(); return; }
+    if (e.key === '?' || (e.key === '/' && e.shiftKey)){ e.preventDefault(); tabReset(); showHelp(); return; }
+    if (e.key === 'Enter' && e.ctrlKey){ e.preventDefault(); e.stopPropagation(); insertCommand(); return; }
+    if (e.key === 'Enter'){
+      e.preventDefault();
+      tabReset();
+      var v = CMD.value;
+      if (v.trim()){
+        state.hist.push(v); state.hi = state.hist.length;
+        run(v);
+      }
+      CMD.value = '';
+      refresh();
+      return;
+    }
+    if (e.key === 'ArrowUp'){
+      e.preventDefault();
+      if (state.hi > 0){ state.hi--; CMD.value = state.hist[state.hi] || ''; refresh(); }
+      return;
+    }
+    if (e.key === 'ArrowDown'){
+      e.preventDefault();
+      if (state.hi < state.hist.length - 1){ state.hi++; CMD.value = state.hist[state.hi] || ''; }
+      else { state.hi = state.hist.length; CMD.value = ''; }
+      refresh();
+      return;
+    }
+    if (e.key === 'l' && e.ctrlKey){ e.preventDefault(); T.innerHTML = ''; }
+  });
+
+  $('#termPane').addEventListener('click', function(e){
+    if (e.target.closest('#cands')) return;
+    /* 正在框选时别抢焦点：聚焦输入框会把选区高亮收掉，浮层按钮也跟着消失 */
+    var sel = window.getSelection();
+    if (sel && !sel.isCollapsed && sel.anchorNode && T.contains(sel.anchorNode)) return;
+    CMD.focus();
+  });
+
+  $('#btnClear').onclick = function(){ T.innerHTML = ''; CMD.focus(); };
+  $('#btnNewNote').onclick = function(){
+    var n = { id:Date.now(), title:'新笔记 ' + (notes.length + 1), body:'' };
+    notes.push(n); curNote = notes.length - 1;
+    saveNotes(); renderNotes(); $('#noteBody').focus();
+  };
+  $('#noteBody').addEventListener('input', function(){
+    if (!notes[curNote]) return;
+    notes[curNote].body = this.value;
+    var first = (this.value.split('\n').find(function(l){ return l.trim(); }) || '未命名')
+      .replace(/^#+\s*/, '').slice(0, 22);
+    notes[curNote].title = first || '未命名';
+    saveNotes();
+    var items = $('#noteList').children;
+    if (items[curNote]) items[curNote].textContent = notes[curNote].title;
+  });
+  $('#btnInsert').onclick = insertCommand;
+  /* 框选终端里的命令 → 浮出按钮，同时点亮标题栏的「记下框选」 */
+  var selDown = false, selTimer = null;
+  T.addEventListener('mousedown', function(){ selDown = true; });
+  document.addEventListener('mouseup', function(){
+    if (!selDown) return;
+    selDown = false;
+    refreshSel();                        /* mouseup 时选区已定型，先立即算一次 */
+    setTimeout(function(){               /* 兼容个别浏览器：下一拍选区才最终确定 */
+      if (selectionEntries().entries.length) refreshSel();
+    }, 30);
+  });
+  /* 键盘选区（Shift+方向键）也能触发；拖拽过程中不弹，免得挡手 */
+  document.addEventListener('selectionchange', function(){
+    clearTimeout(selTimer);
+    selTimer = setTimeout(function(){
+      var r = selectionEntries();
+      selCache = r; selCacheAt = Date.now();
+      syncSelBtn(r.entries.length);
+      if (selDown) return;
+      if (r.entries.length){
+        if (!selBtn || selBtn.style.display === 'none') refreshSel();
+      } else hideSelBtn();
+    }, 180);
+  });
+  /* 终端自动滚到底会触发 scroll，刚弹出的一瞬间不要被它误隐藏 */
+  T.addEventListener('scroll', function(){ if (Date.now() - selBtnAt > 250) hideSelBtn(); });
+  document.addEventListener('mousedown', function(ev){
+    if (selBtn && ev.target !== selBtn) hideSelBtn();
+  });
+  var btnSel = document.getElementById('btnSelNote');
+  if (btnSel){
+    /* 按下时阻止焦点转移，否则选区会被收掉 */
+    btnSel.addEventListener('mousedown', function(ev){ ev.preventDefault(); });
+    btnSel.onclick = recordSelected;
+  }
+  /* 全局快捷键：焦点不在终端时也能一键记下 */
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Enter' && e.ctrlKey && e.target !== CMD){
+      e.preventDefault();
+      if (e.shiftKey) recordSelected(); else insertCommand();
+    }
+  });
+  $('#btnExport').onclick = function(){
+    var n = notes[curNote];
+    var blob = new Blob([n.body], { type:'text/markdown;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (n.title || 'note') + '.md';
+    a.click();
+  };
+
+  document.querySelectorAll('.tab').forEach(function(t){
+    t.onclick = function(){ showTab(t.getAttribute('data-tab')); };
+  });
+
+  $('#libSearch').addEventListener('input', function(){ renderLib(this.value); });
+
+  refresh();
+  CMD.focus();
+}
+
+function showTab(name){
+  document.querySelectorAll('.tab').forEach(function(t){
+    t.classList.toggle('on', t.getAttribute('data-tab') === name);
+  });
+  document.querySelectorAll('.tabbody').forEach(function(b){
+    b.classList.toggle('on', b.id === 'tb-' + name);
+  });
+}
+
+boot();
+})();
+</script>
+</body>
+</html>
