@@ -21,7 +21,8 @@ const PLAN = [
     ['虚连接', ['vlink-peer']],
     ['引入路由 / 默认路由', ['import-route', 'default-route-advertise']],
     ['静默接口', ['silent-interface']],
-    ['路由过滤', ['filter-policy']]
+    ['路由过滤', ['filter-policy']],
+    ['Router ID', [], () => runs('ospf', 'router-id 1.1.1.1') && runs('system', 'ospf 1 router-id 1.1.1.1')]
   ]],
   ['IS-IS', [
     ['NET 与级别', ['network-entity', 'is-level']],
@@ -39,7 +40,8 @@ const PLAN = [
     ['选路属性', ['default local-preference', 'default med', 'preferred-value', 'apply as-path', 'apply community']],
     ['路由过滤', ['filter-policy', 'as-path-filter', 'ip-prefix']],
     ['团体属性', ['community-filter']],
-    ['下一跳控制', ['next-hop-local']]
+    ['下一跳控制', ['next-hop-local']],
+    ['Router ID', [], () => runs('bgp', 'router-id 1.1.1.1')]
   ]],
   ['路由控制', [
     ['前缀列表 + 掩码范围', ['greater-equal', 'less-equal']],
@@ -68,7 +70,7 @@ const PLAN = [
     ['DHCPv6', ['dhcpv6 pool']]
   ]],
   ['安全', [
-    ['ACL（含反掩码匹配）', ['acl', 'rule'], () => runs('acl', 'rule 5 permit source 192.168.1.0 0.0.0.255')],
+    ['ACL（真实五元组语法）', ['acl', 'rule', 'destination-port'], () => runs('acl', 'rule 5 permit tcp source 1.1.1.0 0.0.0.255 destination-port eq 80')],
     ['端口安全', ['port-security enable', 'port-security max-mac-num']],
     ['DHCP Snooping', ['dhcp snooping enable', 'dhcp snooping trusted']],
     ['IPSG / uRPF', ['ip source check user-bind', 'urpf']],
@@ -92,6 +94,7 @@ const PLAN = [
   ]],
   ['运维 / 排错', [
     ['配置保存与启动', ['save', 'startup saved-configuration']],
+    ['管道过滤', [], () => runs('user', 'display current-configuration | include ip')],
     ['排错查询', ['display ospf error', 'display bgp routing-table', 'display ip routing-table']],
     ['调试', ['debugging', 'undo debugging all']]
   ]]
