@@ -187,6 +187,47 @@ t('VLAN 视图里直接 vlan 20', (() => { const r = VRP.analyze('vlan', 'vlan 2
 t('ACL 视图里跳 Vlanif', (() => { const r = VRP.analyze('acl', 'int vlanif 10'); return !r.err && r.action.view === 'if'; })());
 t('用户视图里没有 interface（要先 system-view）', !!VRP.analyze('user', 'interface g0/0/1').err);
 
+console.log('\n--- Router ID / 协议细节 / 管道 ---');
+// Router ID：一行式、空格写法、非法值、系统视图提示
+r = VRP.analyze('system', 'ospf 1 router-id 1.1.1.1');
+t('ospf 1 router-id 一行式', !r.err && r.action.view === 'ospf', r.err && r.err.msg);
+r = VRP.analyze('ospf', 'router id 2.2.2.2');
+t('router id（空格）等价 router-id', !r.err && VRP.canonical(r) === 'router-id 2.2.2.2',
+  r.err ? r.err.msg : VRP.canonical(r));
+r = VRP.analyze('bgp', 'router id 3.3.3.3');
+t('BGP 也认 router id', !r.err, r.err && r.err.msg);
+r = VRP.analyze('ospf', 'router-id 0.0.0.0');
+t('0.0.0.0 不能当 Router ID', !!r.err && /Router ID/.test(r.err.detail), r.err && r.err.detail);
+r = VRP.analyze('system', 'router id 1.1.1.1');
+t('系统视图 router id 给出正确写法提示', !!r.err && /没有全局 router id/.test(r.err.detail),
+  r.err && r.err.detail);
+
+// OSPF / BGP / IS-IS 选项
+t('OSPF Dead 定时器', !VRP.analyze('ospf', 'timer hello 10 dead 40').err);
+t('OSPF 引入路由带 cost/type', !VRP.analyze('ospf', 'import-route direct cost 10 type 1').err);
+t('OSPF 虚连接 MD5 认证', !VRP.analyze('ospfArea', 'vlink-peer 3.3.3.3 authentication-mode md5 1 cipher huawei').err);
+t('BGP allow-as-loop', !VRP.analyze('bgp', 'peer 10.0.0.2 allow-as-loop 2').err);
+t('IS-IS LSP 生成间隔', !VRP.analyze('isis', 'timer lsp-generation 5 50').err);
+t('MPLS label advertise', !VRP.analyze('mpls', 'label advertise non-null').err);
+
+// ACL 真实语法：permit 后直接跟协议，没有 protocol 关键字
+r = VRP.analyze('acl', 'rule 5 permit tcp source 1.1.1.0 0.0.0.255 destination 2.2.2.0 0.0.0.255 destination-port eq 80');
+t('ACL 五元组（无 protocol 关键字）', !r.err, r.err && r.err.detail);
+t('ACL 协议 + any', !VRP.analyze('acl', 'rule 20 permit ip source any').err);
+
+// 管道过滤
+r = VRP.analyze('user', 'display current-configuration | include ip');
+t('管道 | include 可解析', !r.err && r.pipe && r.pipe.mode === 'include' && r.pipe.text === 'ip',
+  r.err ? r.err.msg : JSON.stringify(r.pipe));
+t('管道命令进笔记时保留', VRP.canonical(r).indexOf('| include ip') > 0, VRP.canonical(r));
+
+// 其他补齐
+t('ping -c 选项在前', !VRP.analyze('user', 'ping -c 4 1.1.1.1').err);
+t('NAT 地址池出方向', !VRP.analyze('if', 'nat outbound 2000 address-group 1').err);
+t('命名 ACL advance', !VRP.analyze('system', 'acl name test advance').err);
+t('时区偏移 08:00:00', !VRP.analyze('system', 'clock timezone BJ add 08:00:00').err);
+t('display ip interface 指定接口', !VRP.analyze('user', 'display ip interface GigabitEthernet0/0/1').err);
+
 console.log('\n--- 命令库 ---');
 const lib = VRP.enumerate();
 t('命令条目 > 300', lib.length > 300, String(lib.length));
