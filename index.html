@@ -436,6 +436,37 @@ var PARAMS = {
       return { ok:true, note: note };
     }
   },
+  routerid: {
+    label: 'Router ID', sample: '1.1.1.1', color: 'ip',
+    samples: ['1.1.1.1','2.2.2.2','10.0.0.1'],
+    hint: '点分十进制，通常用 Loopback 地址；不能是 0.0.0.0 或 255.255.255.255',
+    check: function(v){
+      if (!isIp(v)) return { ok:false, msg:'“' + v + '” 不是合法的 Router ID', hint:'格式 a.b.c.d，每段 0-255' };
+      if (v === '0.0.0.0' || v === '255.255.255.255'){
+        return { ok:false, msg:'“' + v + '” 不能作为 Router ID',
+                 hint:'Router ID 必须是设备上一个确定的单播地址，通常用 Loopback 地址' };
+      }
+      return { ok:true, note:'全网唯一的 Router ID；建议用 Loopback 地址' };
+    }
+  },
+  net: {
+    label: 'NET 地址', sample: '49.0001.0000.0000.0001.00', color: 'str',
+    hint: '区域号 + System ID + SEL，例如 49.0001.0000.0000.0001.00；SEL 固定 00',
+    check: function(v){
+      if (!/^[0-9a-f]{2}(\.[0-9a-f]{4}){2,4}\.[0-9a-f]{2}$/i.test(v))
+        return { ok:false, msg:'“' + v + '” 不是合法的 NET', hint:'形如 49.0001.0000.0000.0001.00，SEL 固定 00' };
+      return { ok:true };
+    }
+  },
+  timeoffset: {
+    label: '时区偏移', sample: '08:00:00', color: 'num',
+    hint: '格式 hh:mm:ss，例如 08:00:00',
+    check: function(v){
+      if (!/^\d{1,2}:\d{2}:\d{2}$/.test(v))
+        return { ok:false, msg:'“' + v + '” 不是合法的时间偏移', hint:'格式 hh:mm:ss，例如 08:00:00' };
+      return { ok:true };
+    }
+  },
   mask: {
     label: '子网掩码', sample: '255.255.255.0', color: 'mask',
     samples: ['255.255.255.0','255.255.255.128','255.255.255.252'],
@@ -603,7 +634,7 @@ var VIEWMETA = {
               enter:{from:'system', sample:'interface Eth-Trunk 1', syntax:'interface Eth-Trunk ⟨编号⟩'} },
   vlan:     { name:'VLAN 视图',       tpl:'[{h}-vlan{vlanId}]', bind:'vlanId',
               enter:{from:'system', sample:'vlan 10', syntax:'vlan ⟨VLAN ID⟩'} },
-  ospf:     { name:'OSPF 视图',       tpl:'[{h}-ospf-{ospfPid}]', bind:'ospfPid',
+  ospf:     { name:'OSPF 视图',       tpl:'[{h}-ospf-{ospfPid}]', bind:'ospfPid', bindType:'num',
               enter:{from:'system', sample:'ospf 1', syntax:'ospf ⟨进程号⟩'} },
   ospfArea: { name:'OSPF 区域视图',   tpl:'[{h}-ospf-{ospfPid}-area-{areaId}]', bind:'areaId',
               enter:{from:'ospf', sample:'area 0', syntax:'area ⟨区域ID⟩'} },
@@ -712,7 +743,6 @@ var SPEC = [
   { v:'user', c:'display users', out:'users', d:'查看在线用户' },
   { v:'user', c:'display logbuffer', out:'log', d:'查看日志缓冲区' },
   { v:'user', c:'ping <ipv4:目的IP>', out:'ping', d:'连通性测试' },
-  { v:'user', c:'ping <ipv4:目的IP> -c <num[1-65535]:报文个数>', out:'ping', d:'指定报文个数' },
   { v:'user', c:'tracert <ipv4:目的IP>', out:'tracert', d:'逐跳路径跟踪' },
   { v:'user', c:'save', out:'save', d:'保存配置' },
   { v:'user', c:'reboot', out:'reboot', d:'重启设备' },
@@ -723,7 +753,7 @@ var SPEC = [
   { v:'system', c:'sysname <name:设备名>', out:'ok', d:'修改设备名',
     info:{ brief:'修改设备名，提示符同步变化。', example:['sysname HCIP-AR1'],
            pitfall:['名字只影响本机显示，不参与任何协议协商'] } },
-  { v:'system', c:'clock timezone <name:时区名> add <num[0-12]:偏移小时>', out:'ok', d:'设置时区' },
+  { v:'system', c:'clock timezone <name:时区名> add <timeoffset:偏移>', out:'ok', d:'设置时区' },
   { v:'system', c:'header login information <str:登录标语>', out:'ok', d:'配置登录提示信息' },
   { v:'system', c:'interface <ifname:接口名>', to:'if', d:'进入接口视图',
     info:{ brief:'进入指定接口的配置视图。提示符变为 [设备名-接口名]，IP、VLAN、开销都在这里配。',
@@ -774,7 +804,7 @@ var SPEC = [
   { v:'system', c:'info-center enable', out:'ok', d:'开启信息中心' },
   { v:'system', c:'multicast routing-enable', out:'ok', d:'开启组播路由' },
   { v:'system', c:'pim', to:'pim', d:'进入 PIM 视图' },
-  { v:'system', c:'mpls lsr-id <ipv4:LSR ID>', out:'ok', d:'配置 MPLS LSR ID' },
+  { v:'system', c:'mpls lsr-id <routerid:LSR ID>', out:'ok', d:'配置 MPLS LSR ID' },
   { v:'system', c:'mpls', to:'mpls', d:'进入 MPLS 视图' },
   { v:'system', c:'quit', pop:true, d:'返回上一级视图' },
   { v:'system', c:'return', reset:true, d:'直接回到用户视图' },
@@ -856,7 +886,7 @@ var SPEC = [
   { v:'vlan', c:'quit', pop:true, d:'返回系统视图' },
 
   /* ---------------- OSPF 视图 ---------------- */
-  { v:'ospf', c:'router-id <ipv4:Router ID>', out:'ok', d:'配置 Router ID',
+  { v:'ospf', c:'router-id <routerid:Router ID>', out:'ok', d:'配置 Router ID',
     info:{ brief:'OSPF 的标识，格式是 IP 地址但可以随便写。',
            pitfall:['不配则自动选最大的 Loopback 地址，再选最大的物理接口地址','改动后需 reset ospf process 才生效'] } },
   { v:'ospf', c:'area <areaid:区域ID>', to:'ospfArea', d:'进入 OSPF 区域视图' },
@@ -882,7 +912,7 @@ var SPEC = [
   { v:'ospfArea', c:'quit', pop:true, d:'返回 OSPF 视图' },
 
   /* ---------------- IS-IS 视图 ---------------- */
-  { v:'isis', c:'network-entity <str:NET地址>', out:'ok', d:'配置 NET 地址',
+  { v:'isis', c:'network-entity <net:NET地址>', out:'ok', d:'配置 NET 地址',
     info:{ brief:'NET 由区域号 + System ID + SEL 组成，例如 49.0001.0000.0000.0001.00。',
            pitfall:['同一区域内的区域号必须一致','System ID 必须唯一，通常用 Loopback 地址补齐'] } },
   { v:'isis', c:'is-level <enum{level-1,level-2,level-1-2}:路由器级别>', out:'ok', d:'配置路由器级别' },
@@ -891,7 +921,7 @@ var SPEC = [
   { v:'isis', c:'return', reset:true, d:'直接回到用户视图' },
 
   /* ---------------- BGP 视图 ---------------- */
-  { v:'bgp', c:'router-id <ipv4:Router ID>', out:'ok', d:'配置 BGP Router ID' },
+  { v:'bgp', c:'router-id <routerid:Router ID>', out:'ok', d:'配置 BGP Router ID' },
   { v:'bgp', c:'peer <ipv4:邻居IP> as-number <asnum:对端AS号>', out:'ok', d:'指定对等体及 AS 号',
     info:{ brief:'建立 BGP 邻居的第一步：指定对端地址和它所在的 AS。',
            pitfall:['本端写的对端 AS 必须与对端真实 AS 一致，否则 Idle','iBGP 邻居两端 AS 号相同'] } },
@@ -924,7 +954,6 @@ var SPEC = [
                     '只匹配单台主机可写 0.0.0.0，或 rule 5 permit source 192.168.1.1 0'] } },
   { v:'acl', c:'rule <num[0-65534]:规则编号> <enum{permit,deny}:动作> destination <ipv4:目的网段地址> <wildcard:反掩码>', out:'ok', d:'匹配目的地址' },
   { v:'acl', c:'rule <num[0-65534]:规则编号> <enum{permit,deny}:动作> source <ipv4:源网段地址> <wildcard:反掩码> destination <ipv4:目的网段地址> <wildcard:反掩码>', out:'ok', d:'同时匹配源和目的' },
-  { v:'acl', c:'rule <num[0-65534]:规则编号> <enum{permit,deny}:动作> protocol <enum{tcp,udp,icmp,ip}:协议> destination-port eq <num[0-65535]:端口号>', out:'ok', d:'匹配协议与端口' },
   { v:'acl', c:'quit', pop:true, d:'返回系统视图' },
 
   /* ---------------- DHCP 地址池视图 ---------------- */
@@ -943,7 +972,7 @@ var SPEC = [
   /* ---------------- AAA 视图 ---------------- */
   { v:'aaa', c:'local-user <name:用户名> password cipher <str:密码>', out:'ok', d:'创建本地用户并设密码' },
   { v:'aaa', c:'local-user <name:用户名> privilege level <num[0-15]:权限级别>', out:'ok', d:'设置用户权限级别' },
-  { v:'aaa', c:'local-user <name:用户名> service-type <enum{telnet,ssh,ftp,http}:服务类型>', out:'ok', d:'设置用户服务类型' },
+  { v:'aaa', c:'local-user <name:用户名> service-type <enum{telnet,ssh,ftp,http}:服务类型>', rep:true, out:'ok', d:'设置用户服务类型（可写多个）' },
   { v:'aaa', c:'authentication-scheme <name:认证方案名>', out:'ok', d:'创建认证方案' },
   { v:'aaa', c:'quit', pop:true, d:'返回系统视图' },
 
@@ -1070,7 +1099,6 @@ var SPEC_MORE = [
   { v:'bgpAf', c:'peer <ipv4:邻居IP> substitute-as', out:'ok', d:'AS 号替换' },
 
   /* ACL */
-  { v:'acl', c:'rule <num[0-65534]:规则编号> <enum{permit,deny}:动作> protocol <enum{tcp,udp,icmp,ip}:协议> source <ipv4:源网段地址> <wildcard:反掩码> destination <ipv4:目的网段地址> <wildcard:反掩码>', out:'ok', d:'五元组匹配' },
   { v:'acl', c:'step <num[1-20]:步长>', out:'ok', d:'设置规则步长' },
   { v:'acl', c:'description <str:描述>', out:'ok', d:'ACL 描述' },
   { v:'acl', c:'undo rule <num[0-65534]:规则编号>', out:'ok', d:'删除规则' },
@@ -1165,7 +1193,7 @@ var SPEC_MORE2 = [
   { v:'system', c:'ip route-static <ipv4:目的网段> <mask:子网掩码> <ipv4:下一跳IP> tag <num[1-4294967295]:Tag值>', out:'route', d:'静态路由打 Tag' },
   { v:'system', c:'ip route-static <ipv4:目的网段> <mask:子网掩码> <ipv4:下一跳IP> description <str:描述>', out:'route', d:'静态路由加描述' },
   { v:'system', c:'ip route-static default-preference <num[1-255]:默认优先级>', out:'ok', d:'静态路由默认优先级' },
-  { v:'system', c:'acl name <name:ACL名称> <enum{basic,advanced}:ACL类型>', out:'ok', d:'创建命名 ACL' },
+  { v:'system', c:'acl name <name:ACL名称> <enum{basic,advance,advanced}:ACL类型>', out:'ok', d:'创建命名 ACL' },
   { v:'system', c:'time-range <name:时间段名> <str:时间段>', out:'ok', d:'定义时间段' },
   { v:'system', c:'mac-address aging-time <num[1-1000000]:老化秒数>', out:'ok', d:'设置 MAC 老化时间' },
   { v:'system', c:'mac-address blackhole <mac:MAC地址> vlan <vlanid:VLAN ID>', out:'ok', d:'配置黑洞 MAC' },
@@ -1225,7 +1253,6 @@ var SPEC_MORE2 = [
   { v:'bgpAf', c:'peer <ipv4:邻居IP> route-limit <num[1-4294967295]:最大条数>', out:'ok', d:'限制路由条数' },
 
   /* ACL / 地址池 / 其他 */
-  { v:'acl', c:'rule <num[0-65534]:规则编号> <enum{permit,deny}:动作> protocol <enum{tcp,udp,icmp,ip}:协议> source <ipv4:源网段地址> <wildcard:反掩码> destination-port eq <num[0-65535]:端口号>', out:'ok', d:'按源网段 + 端口匹配' },
   { v:'pool', c:'bootfile-name <str:启动文件名>', out:'ok', d:'下发启动文件名' },
   { v:'pool', c:'next-server <ipv4:服务器地址>', out:'ok', d:'下发 TFTP 服务器' },
   { v:'aaa', c:'local-user <name:用户名> ftp-directory <str:目录>', out:'ok', d:'设置 FTP 目录' },
@@ -1243,7 +1270,7 @@ var SPEC_MORE3 = [
   { v:'system', c:'ipv6', out:'ok', d:'全局使能 IPv6 报文转发' },
   { v:'system', c:'ipv6 route-static <ipv6addr:目的网段> <num[0-128]:前缀长度> <ipv6addr:下一跳IPv6>', out:'route', d:'IPv6 静态路由' },
   { v:'system', c:'ospfv3 <num[1-65535]:进程号>', to:'ospfv3', d:'启动 OSPFv3 进程' },
-  { v:'ospfv3', c:'router-id <ipv4:Router ID>', out:'ok', d:'配置 OSPFv3 Router ID' },
+  { v:'ospfv3', c:'router-id <routerid:Router ID>', out:'ok', d:'配置 OSPFv3 Router ID' },
   { v:'ospfv3', c:'quit', pop:true, d:'返回系统视图' },
   { v:'if', c:'ipv6 enable', out:'ok', d:'接口开启 IPv6' },
   { v:'if', c:'ipv6 address <ipv6addr:接口IPv6地址> <num[0-128]:前缀长度>', out:'ok', d:'配置接口 IPv6 地址' },
@@ -1312,7 +1339,6 @@ var SPEC_MORE3 = [
   { v:'vlan', c:'mux-vlan', out:'ok', d:'配置为 MUX VLAN' },
   { v:'vlan', c:'subordinate group <enum{principal,separate,common}:组类型>', out:'ok', d:'配置 MUX 从 VLAN 组' },
   { v:'vlan', c:'mac-vlan mac-address <mac:MAC地址>', out:'ok', d:'绑定 MAC 与 VLAN' },
-  { v:'vlan', c:'voice-vlan <vlanid:VLAN ID> enable', out:'ok', d:'指定语音 VLAN' },
   { v:'if', c:'mac-vlan enable', out:'ok', d:'接口启用 MAC VLAN' },
   { v:'if', c:'voice-vlan enable', out:'ok', d:'接口启用语音 VLAN' },
   { v:'if', c:'dot1q termination vid <vlanid:VLAN ID>', out:'ok', d:'子接口封装单层 VLAN' },
@@ -1529,7 +1555,105 @@ var SPEC_MORE5 = [
   { v:'user', c:'display vrrp verbose', out:'vrrp', d:'查看 VRRP 详细状态' },
   { v:'user', c:'display ospf peer verbose', out:'ospfpeer', d:'查看 OSPF 邻居详情' }
 ];
-SPEC = SPEC.concat(SPEC_MORE).concat(SPEC_MORE2).concat(SPEC_MORE3).concat(SPEC_MORE4).concat(SPEC_MORE5);
+/* ---------------- 6. Router ID / 协议细节 / 终端参数补齐 ---------------- */
+var SPEC_MORE6 = [
+  /* Router ID：一行式、撤销、常见写法 */
+  { v:'system', c:'ospf <num[1-65535]:进程号> router-id <routerid:Router ID>', to:'ospf',
+    d:'创建 OSPF 进程并同时指定 Router ID',
+    info:{ brief:'等价于先 ospf 1 再 router-id x.x.x.x，考试里常写成一行。',
+           pitfall:['Router ID 要全网唯一，建议用 Loopback 地址','改完 Router ID 需要 reset ospf process 才生效'] } },
+  { v:'ospf',   c:'undo router-id', out:'ok', d:'删除手工 Router ID，恢复自动选举' },
+  { v:'bgp',    c:'undo router-id', out:'ok', d:'删除 BGP Router ID' },
+  { v:'ospfv3', c:'undo router-id', out:'ok', d:'删除 OSPFv3 Router ID' },
+
+  /* OSPF 视图补充 */
+  { v:'ospf', c:'silent-interface all', out:'ok', d:'把所有接口设为静默（只收不发 Hello）' },
+  { v:'ospf', c:'spf-schedule-interval <num[1-10]:SPF计算间隔秒>', out:'ok', d:'调整 SPF 计算间隔' },
+  { v:'ospf', c:'default-route-advertise always', out:'ok', d:'无条件下发默认路由' },
+  { v:'ospf', c:'filter-policy ip-prefix <name:前缀列表名> import', out:'ok', d:'按前缀列表过滤接收的路由' },
+  { v:'ospf', c:'filter-policy ip-prefix <name:前缀列表名> export', out:'ok', d:'按前缀列表过滤发布的路由' },
+
+  /* OSPF 区域认证的完整写法 */
+  { v:'ospfArea', c:'authentication-mode simple cipher <str:密码>', out:'ok', d:'区域简单口令认证' },
+  { v:'ospfArea', c:'authentication-mode md5 <num[1-255]:密钥ID> cipher <str:密码>', out:'ok', d:'区域 MD5 认证' },
+  { v:'ospfArea', c:'authentication-mode hmac-sha256 <num[1-255]:密钥ID> cipher <str:密码>', out:'ok', d:'区域 HMAC-SHA256 认证' },
+
+  /* BGP 补充 */
+  { v:'bgp', c:'default-route imported', out:'ok', d:'允许把默认路由引入 BGP' },
+  { v:'bgp', c:'peer <ipv4:邻居IP> log-change', out:'ok', d:'记录邻居状态和路由变化日志' },
+  { v:'bgpAf', c:'maximum load-balancing <num[1-16]:最大负载数>', out:'ok', d:'BGP 等价路由负载分担' },
+
+  /* 二层补充 */
+  { v:'if', c:'stp instance <num[0-4094]:实例ID> cost <num[1-200000000]:路径开销>', out:'ok', d:'指定实例的端口开销' },
+  { v:'ethTrunk', c:'max active-linknumber <num[1-16]:最大活动链路数>', out:'ok', d:'设置 Eth-Trunk 最大活动链路数' },
+
+  /* VTY / AAA 细节 */
+  { v:'ui', c:'idle-timeout <num[0-35791]:超时分钟> <num[0-59]:秒>', out:'ok', d:'设置空闲超时（分 + 秒）' },
+  { v:'aaa', c:'local-user <name:用户名> password irreversible-cipher <str:密码>', out:'ok', d:'创建本地用户（不可逆加密）' },
+
+  /* 连通性测试的真实参数顺序：选项在前，目的地址在后 */
+  { v:'user', c:'ping -c <num[1-65535]:报文个数> <ipv4:目的IP>', out:'ping', d:'指定报文个数的 ping' },
+  { v:'user', c:'ping -a <ipv4:源IP> <ipv4:目的IP>', out:'ping', d:'指定源地址的 ping' },
+  { v:'user', c:'tracert -m <num[1-255]:最大跳数> <ipv4:目的IP>', out:'tracert', d:'限制最大跳数的路径跟踪' }
+];
+/* ---------------- 7. 协议选项、ACL 五元组、DHCP/NAT、二层与运维补齐 ---------------- */
+var SPEC_MORE7 = [
+  /* OSPF：聚合抑制、默认路由开销、引入路由类型、Dead 定时器、虚连接认证 */
+  { v:'ospf', c:'asbr-summary <ipv4:汇总网段> <mask:子网掩码> not-advertise', out:'ok', d:'ASBR 聚合并抑制明细' },
+  { v:'ospf', c:'default-route-advertise cost <num[0-16777214]:开销>', out:'ok', d:'下发默认路由并指定开销' },
+  { v:'ospf', c:'import-route <enum{direct,static,isis,bgp}:引入路由类型> cost <num[0-16777214]:开销> type <num[1-2]:路由类型>', out:'ok', d:'引入路由并指定开销与类型' },
+  { v:'ospf', c:'timer hello <num[1-65535]:Hello间隔> dead <num[1-65535]:Dead间隔>', out:'ok', d:'同时配置 Hello 与 Dead 间隔' },
+  { v:'ospfArea', c:'vlink-peer <ipv4:虚连接邻居> authentication-mode md5 <num[1-255]:密钥ID> cipher <str:密码>', out:'ok', d:'虚连接 MD5 认证' },
+
+  /* BGP：防环与 GR */
+  { v:'bgp', c:'peer <ipv4:邻居IP> allow-as-loop <num[1-10]:允许次数>', out:'ok', d:'允许 AS 号重复出现' },
+  { v:'bgp', c:'peer <ipv4:邻居IP> substitute-as', out:'ok', d:'用本地 AS 替换私网 AS' },
+  { v:'bgp', c:'peer <ipv4:邻居IP> graceful-restart', out:'ok', d:'邻居启用 BGP GR' },
+
+  /* IS-IS：LSP 生成间隔、前缀列表过滤、默认路由、启动过载 */
+  { v:'isis', c:'timer lsp-generation <num[1-120]:最大间隔> <num[1-120]:初始间隔>', out:'ok', d:'LSP 生成间隔' },
+  { v:'isis', c:'filter-policy ip-prefix <name:前缀列表名> import', out:'ok', d:'按前缀列表过滤接收路由' },
+  { v:'isis', c:'default-route-advertise always', out:'ok', d:'无条件下发默认路由' },
+  { v:'isis', c:'set-overload on-startup <num[30-3600]:启动过载秒>', out:'ok', d:'启动后一段时间内置过载位' },
+
+  /* MPLS */
+  { v:'mpls', c:'label advertise <enum{non-null,implicit-null}:标签类型>', out:'ok', d:'配置标签分配类型' },
+  { v:'if', c:'mpls mtu <num[46-1500]:MTU值>', out:'ok', d:'设置 MPLS MTU' },
+
+  /* 二层细节 */
+  { v:'if', c:'port-isolate enable group <num[1-64]:隔离组号>', out:'ok', d:'加入指定端口隔离组' },
+  { v:'vlan', c:'mac-vlan mac-address <mac:MAC地址> priority <num[0-7]:优先级>', out:'ok', d:'MAC VLAN 绑定并指定优先级' },
+  { v:'system', c:'voice-vlan <vlanid:VLAN ID> enable', out:'ok', d:'指定语音 VLAN' },
+  { v:'ethTrunk', c:'mode manual load-balance', out:'ok', d:'Eth-Trunk 手工负载分担模式' },
+
+  /* DHCP */
+  { v:'if', c:'dhcp select interface', out:'ok', d:'接口使用接口地址池' },
+  { v:'if', c:'dhcp server excluded-ip-address <ipv4:起始IP>', out:'ok', d:'排除单个不分配的地址' },
+  { v:'if', c:'dhcp server excluded-ip-address <ipv4:起始IP> <ipv4:结束IP>', out:'ok', d:'排除一段不分配的地址' },
+
+  /* NAT */
+  { v:'system', c:'nat address-group <num[1-255]:地址组号> <ipv4:起始地址> <ipv4:结束地址>', out:'ok', d:'创建 NAT 地址池' },
+  { v:'if', c:'nat outbound <aclnum:ACL编号> address-group <num[1-255]:地址组号>', out:'ok', d:'NAT 出方向使用地址池' },
+
+  /* ACL：华为真实写法是 permit 后直接跟协议，没有 protocol 关键字 */
+  { v:'acl', c:'rule <num[0-65534]:规则编号> <enum{permit,deny}:动作> <enum{tcp,udp,icmp,ip}:协议>', out:'ok', d:'匹配指定协议的所有报文' },
+  { v:'acl', c:'rule <num[0-65534]:规则编号> <enum{permit,deny}:动作> <enum{tcp,udp,icmp,ip}:协议> source <ipv4:源网段地址> <wildcard:反掩码>', out:'ok', d:'协议 + 源网段' },
+  { v:'acl', c:'rule <num[0-65534]:规则编号> <enum{permit,deny}:动作> <enum{tcp,udp,icmp,ip}:协议> destination <ipv4:目的网段地址> <wildcard:反掩码>', out:'ok', d:'协议 + 目的网段' },
+  { v:'acl', c:'rule <num[0-65534]:规则编号> <enum{permit,deny}:动作> <enum{tcp,udp,icmp,ip}:协议> source <ipv4:源网段地址> <wildcard:反掩码> destination <ipv4:目的网段地址> <wildcard:反掩码>', out:'ok', d:'协议 + 源/目的网段' },
+  { v:'acl', c:'rule <num[0-65534]:规则编号> <enum{permit,deny}:动作> <enum{tcp,udp,icmp,ip}:协议> source <ipv4:源网段地址> <wildcard:反掩码> destination <ipv4:目的网段地址> <wildcard:反掩码> destination-port eq <num[0-65535]:端口号>', out:'ok', d:'五元组匹配' },
+  { v:'acl', c:'rule <num[0-65534]:规则编号> <enum{permit,deny}:动作> <enum{tcp,udp,icmp,ip}:协议> destination-port eq <num[0-65535]:端口号>', out:'ok', d:'协议 + 目的端口' },
+  { v:'acl', c:'rule <num[0-65534]:规则编号> <enum{permit,deny}:动作> <enum{tcp,udp,icmp,ip}:协议> source <ipv4:源网段地址> <wildcard:反掩码> destination-port eq <num[0-65535]:端口号>', out:'ok', d:'协议 + 源网段 + 目的端口' },
+  { v:'acl', c:'rule <num[0-65534]:规则编号> <enum{permit,deny}:动作> <enum{tcp,udp,icmp,ip}:协议> source any', out:'ok', d:'源地址任意' },
+  { v:'acl', c:'rule <num[0-65534]:规则编号> <enum{permit,deny}:动作> <enum{tcp,udp,icmp,ip}:协议> destination any', out:'ok', d:'目的地址任意' },
+
+  /* 组播 / BFD / 排错 */
+  { v:'if', c:'igmp enable', out:'ok', d:'接口启用 IGMP' },
+  { v:'if', c:'bfd min-tx-interval <num[3-1000]:最小发送间隔ms> min-rx-interval <num[3-1000]:最小接收间隔ms>', out:'ok', d:'同时配置 BFD 收发间隔' },
+  { v:'user', c:'display ip interface <ifname:接口名>', out:'ifbrief', d:'查看指定接口的 IP 与状态' },
+  { v:'system', c:'ospf <num[1-65535]:进程号> vpn-instance <name:VPN实例名>', to:'ospf',
+    d:'创建属于指定 VPN 实例的 OSPF 进程' }
+];
+SPEC = SPEC.concat(SPEC_MORE).concat(SPEC_MORE2).concat(SPEC_MORE3).concat(SPEC_MORE4).concat(SPEC_MORE5).concat(SPEC_MORE6).concat(SPEC_MORE7);
 
 /* 把「一行一条」编译成命令树：关键字为边，<类型:语义> 为带类型的叶子 */
 function parseToken(t){
@@ -1693,7 +1817,20 @@ function validateParam(node, value){
 
 /* 3.2 解析一行命令：返回 {tokens, path, cur, err, action} */
 function analyze(viewId, raw){
-  var toks = mergeTokens(String(raw || '').trim() ? String(raw).trim().split(/\s+/) : []);
+  var src = String(raw || '');
+  /* router id 是不少教材和友商的写法，在协议视图里等价于 router-id（华为规范写法） */
+  if (/^router[\s-]+id(\s|$)/i.test(src) && /^(ospf|ospfv3|bgp|bgpAf|bgp6|bgpVpn)$/.test(viewId)){
+    src = src.replace(/^router[\s-]+id/i, 'router-id');
+  }
+  /* 管道过滤：display/ping/tracert 后面可以接 | include 关键字 */
+  var pipe = null;
+  var pm = /^(display|ping|tracert)\b[\s\S]*?\s+\|\s+(include|exclude|begin)\s+(.+)$/i.exec(src);
+  if (pm){
+    pipe = { mode: pm[2].toLowerCase(), text: pm[3].trim() };
+    src = src.slice(0, src.search(/\s+\|\s+(?:include|exclude|begin)\s+/i));
+  }
+  var toks = mergeTokens(src.trim() ? src.trim().split(/\s+/) : []);
+  var wantRouterId = viewId === 'system' && /^router[\s-]+id(\s|$)/i.test(String(raw || '').trim());
   var cur = (VIEWS[viewId] || V_USER).nodes;
   var path = [];
   var err = null;
@@ -1763,6 +1900,10 @@ function analyze(viewId, raw){
       }
       /* 与 VRP 一致：类型/取值不对统一报 Wrong parameter，
          中文原因放到 detail/hint 里，终端在下一行用 ↳ 带出来 */
+      if (viewId === 'acl' && /^protocol$/i.test(tok)){
+        firstErr.v.msg = '华为 ACL 规则里没有 protocol 关键字';
+        firstErr.v.hint = '直接写协议名：rule 5 permit tcp source 1.1.1.0 0.0.0.255';
+      }
       err = { index:i, token:tok, kind:'param', node:firstErr.node,
               msg:'Wrong parameter found at \'^\' position.',
               detail:firstErr.v.msg,
@@ -1784,12 +1925,17 @@ function analyze(viewId, raw){
             msg:'Unrecognized command found at \'^\' position.',
             detail:'这里没有这条命令，检查拼写，或按 ? 看当前可用的命令',
             expect: cur.filter(function(n){ return n.type === 'keyword' && n.text; }).map(function(n){ return n.text; }) };
+    /* 在系统视图打 router id 的人多半是照着友商文档敲的，直接给正确写法 */
+    if (wantRouterId && i === 0){
+      err.detail = '华为 VRP 没有全局 router id 命令';
+      err.hint = 'OSPF：ospf 1 回车后 router-id 1.1.1.1，或直接写 ospf 1 router-id 1.1.1.1；BGP：bgp 100 回车后 router-id 1.1.1.1';
+    }
     break;
   }
 
   var last = path.length ? path[path.length-1].node : null;
   return {
-    tokens: toks, path: path, cur: cur, err: err,
+    tokens: toks, path: path, cur: cur, err: err, pipe: pipe,
     action: last && last.action ? last.action : null,
     node: last
   };
@@ -1799,14 +1945,20 @@ function analyze(viewId, raw){
    （int g 0/0/1 → interface GigabitEthernet0/0/1） */
 function canonical(res){
   if (!res || !res.path || !res.path.length) return '';
-  return res.path.map(function(p){
+  var base = res.path.map(function(p){
     return p.kind === 'keyword' ? p.node.text : (p.display || p.value);
   }).join(' ');
+  /* 管道过滤是命令的一部分，记笔记时保留 */
+  if (res.pipe) base += ' | ' + res.pipe.mode + ' ' + res.pipe.text;
+  return base;
 }
 
 /* 3.3a 补全建议：{items, prefix, base, ctx} */
 function suggest(viewId, raw){
   var s = String(raw == null ? '' : raw);
+  /* 补全只针对管道左侧的命令 */
+  var pm = /\s+\|\s+/.exec(s);
+  if (pm) s = s.slice(0, pm.index);
   var trailing = /\s$/.test(s) || s === '';
   var base, prefix;
   if (trailing){ base = s.trim(); prefix = ''; }
@@ -2013,13 +2165,13 @@ var VIEWNAME = {};
 Object.keys(VRP.VIEWMETA).forEach(function(k){ VIEWNAME[k] = VRP.VIEWMETA[k].name; });
 
 /* ---------- 着色 ---------- */
-var TCLS = { keyword:'tk', ifname:'tif', ipv4:'tip', mask:'tm', wildcard:'tw',
+var TCLS = { keyword:'tk', ifname:'tif', ipv4:'tip', routerid:'tip', mask:'tm', wildcard:'tw',
              num:'tn', enum:'tn', aclnum:'tn', vlanid:'tn', vlanlist:'tn', asnum:'tn',
              areaid:'tn', name:'ts', str:'ts', mac:'ts' };
 
 function echoColored(raw, res){
   var html = '<span class="p">' + VRP.esc(promptText()) + '</span>';
-  if (res && res.path.length && !res.err){
+  if (res && res.path.length && !res.err && !res.pipe){
     var idx = 0, parts = [];
     for (var i=0;i<res.path.length;i++){
       var p = res.path[i];
@@ -2416,6 +2568,22 @@ function run(raw){
       ];
     }
     if (key === 'version') { /* 固定 */ }
+    /* 管道过滤：| include / exclude / begin，和 VRP 一样只作用于回显 */
+    if (res.pipe){
+      var pt = res.pipe.text.toLowerCase();
+      if (res.pipe.mode === 'include'){
+        out = out.filter(function(l){ return String(l).toLowerCase().indexOf(pt) >= 0; });
+      } else if (res.pipe.mode === 'exclude'){
+        out = out.filter(function(l){ return String(l).toLowerCase().indexOf(pt) < 0; });
+      } else {
+        var bi = -1;
+        for (var q=0;q<out.length;q++){
+          if (String(out[q]).toLowerCase().indexOf(pt) >= 0){ bi = q; break; }
+        }
+        out = bi < 0 ? [] : out.slice(bi);
+      }
+      if (!out.length) out = ['  Info: 过滤后没有匹配的行'];
+    }
     for (var i=0;i<out.length;i++) line(out[i], i === 0 && key === 'version' ? 'hdr' : 'o');
     return;
   }
@@ -2927,6 +3095,27 @@ function argsOf(path, role){
 
 /* 一条命令的精确注释；命中不了就走通用说明 */
 function preciseNote(path, sig, prm){
+  /* Router ID / LSR ID：把具体地址写进注释 */
+  var rid = argOf(path, 'Router ID');
+  if (rid){
+    var proc = '';
+    if (sig === 'ospf'){
+      var opid = argOf(path, '进程号');
+      if (opid) proc = 'OSPF 进程' + opid + ' 的 ';
+    }
+    return '把 ' + proc + 'Router ID 设为 ' + rid + '（建议用 Loopback 地址，全网唯一）';
+  }
+  var lid = argOf(path, 'LSR ID');
+  if (lid) return '把 MPLS LSR ID 设为 ' + lid + '（通常与 Loopback 地址一致）';
+
+  if (sig === 'ping' || sig === 'ping -c' || sig === 'ping -a'){
+    var pd = argOf(path, '目的IP'), pc = argOf(path, '报文个数');
+    if (pd) return '测试到 ' + pd + ' 的连通性' + (pc ? '，发 ' + pc + ' 个 ICMP 报文' : '');
+  }
+  if (sig === 'tracert' || sig === 'tracert -m'){
+    var td = argOf(path, '目的IP'), tm = argOf(path, '最大跳数');
+    if (td) return '跟踪到 ' + td + ' 的路径' + (tm ? '，最多 ' + tm + ' 跳' : '');
+  }
   if (sig === 'interface'){
     var nm = argOf(path, '接口名');
     if (nm) return '进入' + ifaceDesc(nm) + '的配置视图';
@@ -3117,6 +3306,11 @@ function annotate(res, view, prm){
     note = String(note).split('。')[0];
   }
   note = String(note || '').replace(/\s+/g, ' ').trim();
+  if (res.pipe){
+    var pm = res.pipe.mode === 'include' ? '只看含'
+           : res.pipe.mode === 'exclude' ? '排除含' : '从含';
+    note += '；' + pm + '“' + res.pipe.text + '”的行';
+  }
   if (note.length > 60) note = note.slice(0, 60) + '…';
   return note || '（暂无注释）';
 }
