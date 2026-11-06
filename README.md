@@ -1,9 +1,6 @@
 # HCIP VRP 命令行训练场
 
-![commands](https://img.shields.io/badge/命令库-567-2f6feb)
-![views](https://img.shields.io/badge/视图-33-2f6feb)
-![tests](https://img.shields.io/badge/断言-87%20passed-1a7f37)
-![single file](https://img.shields.io/badge/单文件-185%20KB-6f42c1)
+**567 条命令 · 33 个视图 · 87 条断言全绿 · 185 KB 单文件 · 零依赖**
 
 一个纯前端的华为 **HCIP-Datacom** 学习工具：eNSP 风格的命令行输入体验 + 快速记笔记。
 单文件、零依赖、不联网、不需要真机或 eNSP，双击 `index.html` 就能用。
