@@ -1,6 +1,6 @@
 # HCIP VRP 命令行训练场
 
-**567 条命令 · 33 个视图 · 87 条断言全绿 · 185 KB 单文件 · 零依赖**
+**602 条命令 · 33 个视图 · 107 条断言全绿 · 198 KB 单文件 · 零依赖**
 
 一个纯前端的华为 **HCIP-Datacom** 学习工具：eNSP 风格的命令行输入体验 + 快速记笔记。
 单文件、零依赖、不联网、不需要真机或 eNSP，双击 `index.html` 就能用。
@@ -56,7 +56,7 @@
 
 右栏还有两个标签页：
 
-- **命令库**：567 条命令按视图分组，支持搜索，点一条直接填入终端
+- **命令库**：602 条命令按视图分组，支持搜索，点一条直接填入终端
 - **设计与数据**：数据组织方式、为什么这么设计、扩容路径
 
 ---
@@ -74,6 +74,8 @@
 | **跨视图命令** | `interface` / `vlan` 在任意视图都能直接用；`q` / `quit` 逐级返回，`return` 直接回用户视图 |
 | **缩写识别** | `int g 0/0/1` → `interface GigabitEthernet0/0/1`；`ip rou` → `ip route-static`；有歧义时列出所有候选（`i` → interface / ip / isis / info-center / ipv6） |
 | **错误定位** | 报错用 VRP 原话：`Unrecognized` / `Ambiguous` / `Wrong parameter` / `Too many parameters`，`^` 精确指到出错的那个词，下一行给中文解释 |
+| **管道过滤** | `display xxx \| include 关键字`，也支持 `exclude` / `begin`，只过滤回显，和 VRP 一致 |
+| **Router ID** | `router-id 1.1.1.1` 与 `router id 1.1.1.1` 两种写法都认；`ospf 1 router-id 1.1.1.1` 可一行写完；`0.0.0.0` 会被拦下 |
 | **大小写** | 命令不区分大小写，`SYSNAME AR1` 和 `sysname AR1` 等价 |
 
 ### 2. 参数类型标注
@@ -85,6 +87,7 @@
 | 关键字 | 白色 | `ip` `address` | 命令树的边 |
 | 接口名 | 青色 | `GigabitEthernet0/0/1` | 支持全称和简写，自动规范化 |
 | IP 地址 | 蓝色 | `192.168.1.1` | 点分十进制，逐段校验 0–255 |
+| Router ID | 蓝色 | `1.1.1.1` | 全网唯一，通常是 Loopback 地址；拒绝 `0.0.0.0` |
 | 子网掩码 | 橙色 | `255.255.255.0` | 也可以写前缀长度 `24` |
 | 反掩码 | 紫色 | `0.0.0.255` | OSPF `network`、ACL `source` 等位置 |
 | 枚举 / 数值 | 绿色 | `permit` `4096` | 有取值范围或固定取值 |
@@ -190,7 +193,7 @@ cd hcip-lab
 
 ## 命令库
 
-**567 条命令 / 33 个视图**，覆盖 HCIP-Datacom 考纲的 62 个考点。
+**602 条命令 / 33 个视图**，覆盖 HCIP-Datacom 考纲的 65 个考点。
 
 <details>
 <summary>展开 33 个视图</summary>
@@ -252,18 +255,18 @@ flowchart TB
 仓库里带了三个验收脚本，改完命令库跑一遍就知道有没有写坏：
 
 ```bash
-node test.js    # 引擎断言：解析、补全、纠错、视图跳转（87 条）
-node exam.js    # HCIP-Datacom 考纲对照（62 个考点，逐条实际解析）
+node test.js    # 引擎断言：解析、补全、纠错、视图跳转、管道（107 条）
+node exam.js    # HCIP-Datacom 考纲对照（65 个考点，逐条实际解析）
 node audit.js   # 27 个功能域覆盖体检
 ```
 
 输出示例：
 
 ```text
-结果: 87 passed, 0 failed
+结果: 107 passed, 0 failed
 
-命令库：567 条 / 33 个视图
-考点覆盖：62/62 （100%）
+命令库：602 条 / 33 个视图
+考点覆盖：65/65 （100%）
 
 OSPF          ████████████  12/12
 BGP           ████████  8/8
